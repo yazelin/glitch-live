@@ -5,7 +5,7 @@
 2. 搬進 `glitch-vn/larch/cards/phone.html`，四頁整份換掉：
    - `day`、`slot`、`phone_log`、`open_studio`、`met_櫃檯`、`phone_day_seen` 照原本那份讀 Larch 變數，
      主控台那一塊不進遊戲。
-   - 訊息頁現在是照天數推出來的預覽，遊戲裡要回去讀 `phone_log`。
+   - 訊息頁的三則推播是照開台的晚上算出來的，另外兩則掛在主控台的旗標上；遊戲裡全部回去讀 `phone_log`。
    - 橫幅模式（`MODE=banner`）原本那一份還在，這一版沒有做，搬的時候要接回去。
 3. 第五天的留言橋段現在只是演給人看。遊戲裡它是一個 choice（`調查篇-直播.md` 第五天），
    要決定是留在插件卡裡寫變數，還是回板上讓 Larch 的選項卡處理。

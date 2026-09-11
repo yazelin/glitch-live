@@ -107,9 +107,10 @@ else console.log(`PASS 第五天留言｜草稿改成「${draft}」｜送出後�
 
 /* ── 其餘三頁與沒開台的直播 ── */
 const pages = [
-  ['msg',  8, 2, ['格莉奇 開始直播了', '有空來工作室', '她不回'], 'page-msg'],
+  ['msg',  8, 2, ['格莉奇 開始直播了', '她不回'], 'page-msg'],
   ['feed', 8, 2, ['金魚腦合輯第七集有人剪好了', '@Null_0x99', '兩年前', '考完就刪'], 'page-feed'],
   ['live', 7, 2, ['上次開台：第五天', '聊天室最後一則：今天講到哪了'], 'page-offair'],
+  ['live', 13, 2, ['第十三天', '上次開台：第八天', '聊天室最後一則：這集有我'], 'page-offair-d13'],
   ['call', 8, 2, ['沒有人會打來'], 'page-call'],
 ];
 for (const [tab, d, s, want, shot] of pages) {
@@ -122,6 +123,21 @@ for (const [tab, d, s, want, shot] of pages) {
   if (missing.length || !paused) fail(`${shot}｜缺 ${JSON.stringify(missing)}｜影片有停 ${paused}`);
   else console.log(`PASS ${shot}｜該有的字都在，離開直播時影片有停`);
 }
+
+/* 訊息：三則推播照開台的晚上累積，另外兩則靠旗標。數字對通關路線那份逐字稿。 */
+await page.evaluate(() => { window.setTime(8, 2); window.show('msg'); });
+await page.waitForTimeout(250);
+const push8 = await page.evaluate(() => [...document.querySelectorAll('#page .msg .bub')].filter(e => e.textContent.includes('開始直播了')).length);
+await page.evaluate(() => { window.setTime(5, 2); window.show('msg'); });
+await page.waitForTimeout(250);
+const push5 = await page.evaluate(() => [...document.querySelectorAll('#page .msg .bub')].filter(e => e.textContent.includes('開始直播了')).length);
+await page.evaluate(() => { window.setTime(8, 2); document.querySelector('#flags button[data-f="open_studio"]').click(); });
+await page.waitForTimeout(250);
+const withFlag = await page.textContent('#page');
+await page.locator('#phone').screenshot({ path: join(TMP, 'page-msg-flag.png') });
+if (!(push5 === 2 && push8 === 3 && withFlag.includes('有空來工作室')))
+  fail(`訊息｜第五天晚上該有 2 則推播，量到 ${push5}；第八天該有 3 則，量到 ${push8}；旗標開了之後斑比那則 ${withFlag.includes('有空來工作室')}`);
+else console.log('PASS 訊息｜第五天 2 則推播、第八天 3 則，旗標開了斑比那則才出現');
 
 /* 第一天只該有兩則貼文 */
 await page.evaluate(() => { window.setTime(1, 0); window.show('feed'); });

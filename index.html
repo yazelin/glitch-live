@@ -17,7 +17,16 @@
   --cy:#25c2e8; --mint:#7cf3c0; --purple:#b78bff;
   --text:#dfe8ec; --muted:#93a3ac; --faint:#6d7d84; --red:#e0323f;
 }
-*{box-sizing:border-box}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(183,139,255,.4) transparent}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(183,139,255,.4);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(183,139,255,.65)}
+/* 手機螢幕裡面那條要更不起眼，真的手機是一條半透明的白 */
+#page{scrollbar-color:rgba(255,255,255,.2) transparent}
+#page::-webkit-scrollbar{width:4px}
+#page::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+#page::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.34)}
 html,body{margin:0;min-height:100%}
 body{background:
     radial-gradient(1100px 700px at 50% -10%,rgba(183,139,255,.16),transparent 62%),
@@ -289,10 +298,12 @@ body{background:
   <h1>她的手機・畫面原型</h1>
   <p>《調查篇》背包裡那支手機，四頁。內容照 <code>design/調查篇-手機.md</code> 與
      <code>調查篇-直播.md</code>。這裡只驗畫面，確認之後才搬進 Larch。</p>
-  <h2>第幾天</h2>
+  <h2>第幾天（板到第十三天）</h2>
   <div class="grp" id="days"></div>
   <h2>什麼時候</h2>
   <div class="grp" id="slots"></div>
+  <h2>旗標（訊息靠它，不靠天數）</h2>
+  <div class="grp" id="flags"></div>
   <h2>驗收</h2>
   <div class="grp">
     <button type="button" id="replay">重播載入</button>
@@ -374,12 +385,13 @@ var OLD = [
   {id:'考完就刪', text:'我剛剛考完了。', deleted:true},
   {id:'格莉奇', text:'謝謝你！我會記得的。', self:true}
 ];
-/* 訊息：遊戲裡讀變數 phone_log，這裡為了預覽照天數推出來 */
-var MSGS = [
-  {who:'格莉奇', days:[2,5,8], slot:2, text:'格莉奇 開始直播了'},
-  {who:'斑比',   from:3, text:'有空來工作室。稿子帶著。'},
-  {who:'公關窗口', from:5, text:'您的來信已收到，我們將於三至五個工作天內回覆。'}
-];
+/* 訊息＝變數 phone_log。三則推播照她開台的晚上一則一則進來，另外兩則靠旗標，
+   跟天數無關（design/調查篇-手機.md 二之一）。旗標在主控台自己開，開的時候記下是第幾天。 */
+var FLAGS = { met_櫃檯:0, open_studio:0 };
+var FLAG_MSG = {
+  met_櫃檯:   {who:'公關窗口', text:'您的來信已收到，我們將於三至五個工作天內回覆。'},
+  open_studio:{who:'斑比',     text:'有空來工作室。稿子帶著。'}
+};
 
 var STEPS = [[0,'連線中⋯⋯'],[420,'取得串流網址⋯⋯'],[980,'緩衝中 720p'],[1620,'進入聊天室⋯⋯'],[2180,'開始播放']];
 var HUE = {}, nextHue = 168;
@@ -393,14 +405,19 @@ function later(fn,ms){ var id=setTimeout(fn,ms); timers.push(id); return id; }
 function every(fn,ms){ var id=setInterval(fn,ms); timers.push(id); return id; }
 function el(t,c,txt){ var e=document.createElement(t); if(c)e.className=c; if(txt!=null)e.textContent=txt; return e; }
 function fmt(n){ return n.toLocaleString('en-US'); }
-function cnDay(n){ return '第'+CN[n]+'天'; }
+function cnNum(n){ return n<=10 ? CN[n] : '十'+CN[n-10]; }
+function cnDay(n){ return '第'+cnNum(n)+'天'; }
 function onAir(){ return LIVE_DAYS.indexOf(day)>=0 && slot>=2; }
 function colour(id){ if(!HUE[id]){ HUE[id]='hsl('+(nextHue%360)+' 72% 68%)'; nextHue+=67; } return HUE[id]; }
 function msgs(){
-  return MSGS.filter(function(m){
-    if(m.days) return m.days.some(function(d){ return d<day || (d===day && slot>=m.slot); });
-    return day>=m.from;
+  var a=[];
+  LIVE_DAYS.forEach(function(d){
+    if(d<day || (d===day && slot>=2)) a.push({who:'格莉奇', text:'格莉奇 開始直播了', day:d, slot:2});
   });
+  Object.keys(FLAGS).forEach(function(k){
+    if(FLAGS[k]) a.push({who:FLAG_MSG[k].who, text:FLAG_MSG[k].text, day:FLAGS[k], slot:1});
+  });
+  return a.sort(function(x,y){ return x.day-y.day || x.slot-y.slot; });
 }
 function freshPosts(){ return POSTS.some(function(p){ return p.day<=day && p.day>seenDay; }); }
 
@@ -515,7 +532,7 @@ function drawMsg(box){
     var bd=el('div','bd');
     bd.appendChild(el('div','who',m.who));
     bd.appendChild(el('div','bub',m.text));
-    bd.appendChild(el('div','when', m.days?(cnDay(day)+'・晚上'):cnDay(m.from)));
+    bd.appendChild(el('div','when', cnDay(m.day)+(m.slot===2?'・晚上':'')));
     r.appendChild(av); r.appendChild(bd); box.appendChild(r);
   });
   var rp=el('div'); rp.id='reply';
@@ -631,7 +648,8 @@ function drawWm(on){
 
 /* ── 接線 ── */
 glitchAvatar($('#av'));
-[1,2,3,4,5,6,7,8].forEach(function(d){
+/* 板走到第十三天。第十四天上午只有結局，玩家不經過板也不會開手機 */
+[1,2,3,4,5,6,7,8,9,10,11,12,13].forEach(function(d){
   var b=el('button',null,cnDay(d)); b.type='button'; b.dataset.d=d;
   b.addEventListener('click',function(){ setTime(d,slot); });
   $('#days').appendChild(b);
@@ -640,6 +658,17 @@ SLOTS.forEach(function(s,i){
   var b=el('button',null,s); b.type='button'; b.dataset.s=i;
   b.addEventListener('click',function(){ setTime(day,i); });
   $('#slots').appendChild(b);
+});
+var FLAG_LABEL = { met_櫃檯:'見過櫃檯', open_studio:'工作室開了' };
+Object.keys(FLAGS).forEach(function(k){
+  var b=el('button',null,FLAG_LABEL[k]); b.type='button'; b.dataset.f=k;
+  b.addEventListener('click',function(){
+    FLAGS[k] = FLAGS[k] ? 0 : day;           // 開的時候記下是第幾天，訊息才排得出先後
+    b.className = FLAGS[k] ? 'on' : '';
+    $('#dot-msg').hidden = !msgs().length;
+    show(tab);
+  });
+  $('#flags').appendChild(b);
 });
 Array.prototype.forEach.call(document.querySelectorAll('#tabs button'),function(b){
   b.addEventListener('click',function(){ show(b.dataset.p); }); });
