@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>格莉奇・直播中（手機畫面原型）</title>
+<meta name="description" content="《格莉奇與黑洞先生・調查篇》背包裡那支手機的直播頁，先在這裡驗畫面，確認之後才搬進 Larch。">
+<!--
+  這是原型，不是 Larch 卡片。驗完畫面才把 .live 那一段搬進 glitch-vn 的 larch/cards/phone.html。
+  三晚的內容照 glitch-vn/design/調查篇-直播.md 與 調查篇-手機.md。
+  影片右下角有 Gemini 浮水印，底部聊天室與輸入列負責蓋住它；?wm=1 會把浮水印框畫出來，
+  主控台的「驗浮水印」按鈕會用 elementFromPoint 實測有沒有蓋到。
+-->
+<style>
+:root{
+  --bg:#04080c; --win:#11161b; --sunk:#0a1319; --body:#15171d; --edge:#2a2d36;
+  --cy:#25c2e8; --mint:#7cf3c0; --purple:#b78bff;
+  --text:#dfe8ec; --muted:#93a3ac; --faint:#6d7d84; --red:#e0323f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:
+    radial-gradient(1100px 700px at 50% -10%,rgba(183,139,255,.16),transparent 62%),
+    radial-gradient(800px 500px at 12% 108%,rgba(37,194,232,.12),transparent 60%),
+    var(--bg);
+  color:var(--text);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;justify-content:center;
+  padding-block:36px;padding-left:16px;padding-right:16px}
+
+/* ── 手機殼（沿用 glitch-vn/larch/cards/phone.html 的規格） ── */
+#phone{position:relative;flex:none;width:min(390px,92vw);height:min(788px,86vh);min-height:600px;
+  background:var(--body);border-radius:38px;padding:12px;
+  box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 0 2px var(--edge),0 0 60px rgba(183,139,255,.12)}
+#screen{position:relative;width:100%;height:100%;border-radius:28px;overflow:hidden;background:#07080c;isolation:isolate}
+#vid,#poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+#poster{z-index:1}
+#vid{z-index:0}
+
+/* ── 直播介面 ── */
+.scrim-t{position:absolute;z-index:3;left:0;right:0;top:0;height:34%;
+  background:linear-gradient(rgba(4,6,10,.82),rgba(4,6,10,.42) 45%,transparent);pointer-events:none}
+/* 影片右下角的浮水印在螢幕 84%～96% 之間（見 index.html 頂部 WM），所以這一塊到 64%（＝螢幕 84%）就要是實心，
+   半透明的遮罩只會把浮水印壓暗、壓不掉。 */
+.scrim-b{position:absolute;z-index:3;left:0;right:0;bottom:0;height:46%;pointer-events:none;
+  background:linear-gradient(transparent,rgba(4,6,10,.42) 28%,rgba(4,6,10,.88) 54%,#04060a 64%,#04060a)}
+
+#hdr{position:absolute;z-index:6;left:0;right:0;top:0;padding:14px 12px 0;display:flex;align-items:center;gap:9px}
+#hdr .av{flex:none;width:38px;height:38px;border-radius:50%;background:#2a2d36 center/cover no-repeat;
+  box-shadow:0 0 0 2px var(--purple),0 0 14px rgba(183,139,255,.55)}
+#hdr .who{flex:1;min-width:0}
+#hdr .nm{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;letter-spacing:.02em}
+#hdr .nm i{font-style:normal;color:var(--cy);font-size:12px}
+#hdr .sub{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#follow{appearance:none;border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;
+  padding:7px 14px;border-radius:999px;background:var(--cy);color:#04080c;transition:background .15s}
+#follow:hover{background:var(--mint)}
+#follow.on{background:rgba(255,255,255,.12);color:var(--text)}
+
+#meta{position:absolute;z-index:6;left:12px;top:62px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:6px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;background:rgba(8,10,16,.66);
+  backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.1)}
+.pill.live{background:var(--red);border-color:transparent;color:#fff}
+.pill.live.wait{background:rgba(8,10,16,.66);border:1px solid rgba(255,255,255,.1);color:var(--muted)}
+.pill.live.wait b{background:var(--muted)}
+.pill.live b{width:6px;height:6px;border-radius:50%;background:#fff;animation:blink 1.6s steps(1,end) infinite}
+@keyframes blink{0%,60%{opacity:1}61%,100%{opacity:.15}}
+.pill .eye{width:13px;height:9px;border-radius:0 0 50% 50%/0 0 100% 100%;box-shadow:inset 0 0 0 1.4px currentColor;
+  border-top:1.4px solid currentColor;border-radius:50%;position:relative}
+.pill .eye::after{content:"";position:absolute;inset:3px 4.5px;border-radius:50%;background:currentColor}
+
+#title{position:absolute;z-index:6;left:12px;right:52px;top:92px;font-size:13px;line-height:1.5;
+  color:var(--text);text-shadow:0 1px 6px rgba(0,0,0,.8)}
+
+/* 右側動作列 */
+#rail{position:absolute;z-index:6;right:8px;bottom:150px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.act{appearance:none;border:0;cursor:pointer;font:inherit;color:var(--text);background:none;
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;line-height:1}
+.act .ic{width:42px;height:42px;border-radius:50%;background:rgba(10,13,19,.6);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;
+  font-size:17px;transition:transform .12s,background .15s}
+.act:hover .ic{background:rgba(37,194,232,.22);transform:translateY(-2px)}
+.act small{font-size:10px;color:#cfd9df;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px rgba(0,0,0,.9)}
+.act.liked .ic{background:rgba(224,50,63,.3);border-color:rgba(224,50,63,.6)}
+.act.liked small{color:#ff8b93}
+
+/* 聊天室：影片右下角的浮水印靠這一塊與底下的輸入列蓋住 */
+#chatwrap{position:absolute;z-index:5;left:0;right:0;bottom:56px;height:196px;
+  -webkit-mask-image:linear-gradient(transparent,#000 46px);mask-image:linear-gradient(transparent,#000 46px)}
+#chat{position:absolute;inset:0;overflow:hidden;padding:0 12px 4px;display:flex;flex-direction:column;justify-content:flex-end;gap:5px}
+.row{display:flex;gap:6px;align-items:baseline;font-size:12.5px;line-height:1.45;
+  animation:rise .26s ease-out;text-shadow:0 1px 4px rgba(0,0,0,.85)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.row .id{flex:none;font-weight:700;font-size:11.5px}
+.row .tx{color:#eef3f6;word-break:break-word}
+.row.link .tx{color:var(--cy);text-decoration:underline;text-underline-offset:2px}
+.row.read{background:rgba(124,243,192,.14);border-left:2px solid var(--mint);
+  border-radius:0 6px 6px 0;padding:3px 7px;margin-left:-9px}
+.row.sys .tx{color:var(--faint);font-style:normal}
+
+#bar{position:absolute;z-index:6;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:8px;
+  padding:0 12px 8px;background:#04060a}
+#say{flex:1;height:36px;border-radius:999px;background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;padding:0 14px;
+  font-size:12.5px;color:#9aa7b0}
+#heart{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.09);color:#ff7d87;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#hearts{position:absolute;z-index:5;right:6px;bottom:56px;width:46px;height:190px;pointer-events:none;overflow:hidden}
+.hb{position:absolute;bottom:0;left:12px;font-size:15px;color:#ff7d87;animation:fly 2.1s ease-out forwards}
+@keyframes fly{0%{opacity:0;transform:translate(0,0) scale(.6)}
+  12%{opacity:1}100%{opacity:0;transform:translate(var(--dx,-14px),-170px) scale(1.15)}}
+
+/* ── 假載入 ── */
+#load{position:absolute;z-index:4;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:rgba(4,6,10,.4);backdrop-filter:blur(11px);transition:opacity .45s}
+#load.gone{opacity:0;pointer-events:none}
+#ring{width:46px;height:46px;border-radius:50%;border:2.5px solid rgba(255,255,255,.14);
+  border-top-color:var(--cy);animation:spin .82s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#lmsg{font-size:12.5px;color:var(--muted);letter-spacing:.04em}
+#lbar{width:158px;height:3px;border-radius:2px;background:rgba(255,255,255,.13);overflow:hidden}
+#lbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cy),var(--mint))}
+@media (prefers-reduced-motion:reduce){#ring,.pill.live b{animation:none}.row{animation:none}}
+
+/* ── 主控台（原型用，不進遊戲） ── */
+#panel{flex:none;width:min(320px,92vw);background:var(--win);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:18px 18px 16px}
+#panel h1{margin:0 0 4px;font-size:15px;letter-spacing:.02em}
+#panel p{margin:0 0 14px;font-size:12px;line-height:1.7;color:var(--muted)}
+#panel h2{margin:16px 0 7px;font-size:11px;letter-spacing:.12em;color:var(--faint);font-weight:700}
+.grp{display:flex;gap:6px;flex-wrap:wrap}
+.grp button{appearance:none;cursor:pointer;font:inherit;font-size:12px;padding:7px 12px;border-radius:8px;
+  background:var(--sunk);border:1px solid rgba(255,255,255,.12);color:var(--text);transition:.15s}
+.grp button:hover{border-color:var(--cy);color:var(--cy)}
+.grp button.on{background:var(--cy);border-color:var(--cy);color:#04080c;font-weight:700}
+#out{margin-top:12px;font-size:11.5px;line-height:1.75;color:var(--faint);white-space:pre-wrap;
+  background:var(--sunk);border-radius:8px;padding:10px 12px;min-height:38px}
+#out .ok{color:var(--mint)} #out .no{color:#ff8b93}
+#wmbox{position:absolute;z-index:20;outline:2px solid #ff2f6d;background:rgba(255,47,109,.2);pointer-events:none;display:none}
+</style>
+
+<div id="phone"><div id="screen">
+  <video id="vid" playsinline muted loop preload="auto" poster="assets/poster.webp"></video>
+  <img id="poster" src="assets/poster.webp" alt="格莉奇在直播間裡向鏡頭揮手">
+  <div class="scrim-t"></div><div class="scrim-b"></div>
+
+  <div id="hdr">
+    <div class="av" id="av"></div>
+    <div class="who">
+      <div class="nm">格莉奇 <i>✦</i></div>
+      <div class="sub" id="sub"></div>
+    </div>
+    <button id="follow" type="button">追蹤</button>
+  </div>
+
+  <div id="meta">
+    <span class="pill live" id="livepill"><b></b>LIVE</span>
+    <span class="pill"><span class="eye"></span><span id="viewers">0</span></span>
+    <span class="pill" id="elapsed">00:00</span>
+  </div>
+  <div id="title"></div>
+
+  <div id="rail">
+    <button class="act" id="like" type="button"><span class="ic">♡</span><small id="likes">0</small></button>
+    <button class="act" id="gift" type="button"><span class="ic">◈</span><small>抖內</small></button>
+    <button class="act" id="sound" type="button"><span class="ic">◁</span><small>靜音</small></button>
+    <button class="act" id="share" type="button"><span class="ic">↗</span><small>分享</small></button>
+  </div>
+
+  <div id="chatwrap"><div id="chat"></div></div>
+  <div id="hearts"></div>
+  <div id="bar"><div id="say">說點什麼⋯⋯</div><div id="heart">♥</div></div>
+
+  <div id="load">
+    <div id="ring"></div>
+    <div id="lmsg">連線中⋯⋯</div>
+    <div id="lbar"><i></i></div>
+  </div>
+  <div id="wmbox"></div>
+</div></div>
+
+<div id="panel">
+  <h1>直播頁原型</h1>
+  <p>《調查篇》背包裡那支手機的直播分頁。三晚的內容照 <code>design/調查篇-直播.md</code>。
+     這裡只驗畫面，確認之後才搬進 Larch。</p>
+  <h2>哪一晚</h2>
+  <div class="grp" id="nights"></div>
+  <h2>驗收</h2>
+  <div class="grp">
+    <button type="button" id="replay">重播載入</button>
+    <button type="button" id="check">驗浮水印</button>
+    <button type="button" id="showwm">顯示浮水印框</button>
+  </div>
+  <div id="out">影片右下角有 Gemini 浮水印。按「驗浮水印」會用 elementFromPoint 逐點實測底部介面有沒有真的蓋住它。</div>
+</div>
+
+<script>
+'use strict';
+/* 影片原生 720×1280，浮水印（Gemini 星形）量到的位置，取正規化座標再放寬一點當安全框 */
+var WM = {x0:.78, y0:.86, x1:.90, y1:.95};
+
+var NIGHTS = {
+  2:{ label:'第二天', title:'今天的事情有點多，我們一件一件來。',
+      from:612, to:743, gap:330, likes:4820, since:'開台 4 分鐘',
+      lines:[
+        ['早安人','早安'],['今天也在','來了'],['CatGrass_80','在'],
+        ['魚缸不用洗','逼——嗶'],['Tower_Manager','晚安'],
+        ['早安人','早安'],['夜班司機','剛下班衝進來'],
+        ['Bambi_Draft3','今天的頭髮很好看'],['今天也在','一件一件來'],
+        ['八百人達成','人數又跳了'],['Null_0x99','21:04:12'],
+        ['早安人','早安'],['CatGrass_80','聽得到'],['魚缸不用洗','開場那句一模一樣'],
+        ['沒睡的人','字都一樣欸'],['今天也在','本來就一樣啊'],
+        ['Tower_Manager','讚'],['早安人','早安']
+      ]},
+  5:{ label:'第五天', title:'今天也在，謝謝你。早安人，謝謝你，現在是晚上喔。',
+      from:688, to:812, gap:520, likes:7311, since:'開台 13 分鐘',
+      lines:[
+        ['今天也在','今天也在','read'],['早安人','早安','read'],
+        ['CatGrass_80','今天講到哪了','read'],
+        ['借過一下','她唸到我了'],['夜班司機','排隊'],
+        ['魚缸不用洗','我也想被唸'],['Bambi_Draft3','第四十一版畫完了'],
+        ['沒睡的人','ID 好長她會卡住'],['Null_0x99','21:13:40'],
+        ['借過一下','謝謝格莉奇'],['今天也在','明天也會在'],
+        ['Tower_Manager','辛苦'],['早安人','早安']
+      ]},
+  8:{ label:'第八天', title:'逼——嗶！大家好，我是格莉奇。',
+      from:901, to:1094, gap:300, likes:15904, since:'開台 1 分鐘',
+      lines:[
+        ['早安人','早安'],['今天也在','早安'],['魚缸不用洗','早安'],
+        ['夜班司機','早安'],['沒睡的人','早安（晚上九點）'],
+        ['借過一下','早安'],['CatGrass_80','早安'],
+        ['剪片的','金魚腦合輯 第七集','link'],
+        ['第七集有我','這集有我','read'],['今天也在','笑死'],
+        ['早安人','早安'],['Bambi_Draft3','第七集的縮圖是我畫的'],
+        ['Tower_Manager','讚'],['魚缸不用洗','排隊看自己有沒有在裡面'],
+        ['Null_0x99','21:00:00'],['早安人','早安']
+      ]}
+};
+var STEPS = [[0,'連線中⋯⋯'],[420,'取得串流網址⋯⋯'],[980,'緩衝中 720p'],[1620,'進入聊天室⋯⋯'],[2180,'開始播放']];
+var HUE = {}, nextHue = 168;
+
+var $ = function(s){ return document.querySelector(s); };
+var vid=$('#vid'), poster=$('#poster'), chat=$('#chat'), out=$('#out');
+var night=2, timers=[], t0=0, likes=0, viewers=0;
+
+function clear(){ timers.forEach(clearTimeout); timers.forEach(clearInterval); timers=[]; }
+function later(fn,ms){ var id=setTimeout(fn,ms); timers.push(id); return id; }
+function every(fn,ms){ var id=setInterval(fn,ms); timers.push(id); return id; }
+
+function colour(id){
+  if(!HUE[id]){ HUE[id]='hsl('+(nextHue%360)+' 72% 68%)'; nextHue+=67; }
+  return HUE[id];
+}
+function post(id,text,kind){
+  var r=document.createElement('div');
+  r.className='row'+(kind?' '+kind:'');
+  var a=document.createElement('span'); a.className='id'; a.textContent='@'+id; a.style.color=colour(id);
+  var b=document.createElement('span'); b.className='tx'; b.textContent=text;
+  r.appendChild(a); r.appendChild(b); chat.appendChild(r);
+  while(chat.children.length>14) chat.removeChild(chat.firstChild);
+}
+function fmt(n){ return n.toLocaleString('en-US'); }
+function clock(ms){
+  var s=Math.floor(ms/1000);
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function fly(){
+  var h=document.createElement('div'); h.className='hb'; h.textContent='♥';
+  h.style.setProperty('--dx',(Math.random()*36-22).toFixed(0)+'px');
+  h.style.color='hsl('+(330+Math.random()*30)+' 90% 72%)';
+  $('#hearts').appendChild(h); setTimeout(function(){ h.remove(); },2100);
+}
+
+function start(n){
+  clear(); night=n; var cfg=NIGHTS[n];
+  chat.textContent=''; poster.style.opacity='';
+  $('#load').className=''; $('#lbar i').style.width='0'; $('#lmsg').textContent=STEPS[0][1];
+  $('#title').textContent=cfg.title;
+  $('#sub').textContent=cfg.label+'・'+cfg.since;
+  viewers=cfg.from; $('#viewers').textContent=fmt(viewers);
+  likes=cfg.likes; $('#likes').textContent=fmt(likes);
+  $('#elapsed').textContent='00:00';
+  $('#livepill').className='pill live wait'; $('#livepill').lastChild.textContent='連線中';
+  $('#like').className='act'; $('#follow').className=''; $('#follow').textContent='追蹤';
+  Array.prototype.forEach.call(document.querySelectorAll('#nights button'),function(b){
+    b.className = Number(b.dataset.n)===n ? 'on' : ''; });
+
+  try{ vid.pause(); vid.currentTime=0; }catch(e){}
+  if(!vid.getAttribute('src')) vid.src='assets/live-loop.mp4';
+
+  STEPS.forEach(function(s,i){
+    later(function(){
+      $('#lmsg').textContent=s[1];
+      $('#lbar i').style.transition='width .5s ease';
+      $('#lbar i').style.width=Math.round((i+1)/STEPS.length*100)+'%';
+    }, s[0]);
+  });
+  later(live, 2450);
+}
+
+function live(){
+  var cfg=NIGHTS[night], i=0;
+  $('#load').className='gone';
+  $('#livepill').className='pill live'; $('#livepill').lastChild.textContent='LIVE';
+  poster.style.transition='opacity .5s'; poster.style.opacity='0';
+  vid.play().catch(function(){ /* 自動播放被擋就停在首幀，海報淡掉之後仍看得到畫面 */ });
+  t0=Date.now();
+  every(function(){ $('#elapsed').textContent=clock(Date.now()-t0); },500);
+  every(function(){
+    var l=cfg.lines[i%cfg.lines.length]; i++;
+    post(l[0],l[1],l[2]);
+    if(viewers<cfg.to){ viewers+=Math.ceil(Math.random()*6); $('#viewers').textContent=fmt(Math.min(viewers,cfg.to)); }
+    if(Math.random()<.45){ likes+=Math.ceil(Math.random()*3); $('#likes').textContent=fmt(likes); fly(); }
+  }, cfg.gap);
+}
+
+/* ── 浮水印覆蓋檢查 ── */
+function wmRect(){
+  var r=vid.getBoundingClientRect(), vw=vid.videoWidth||720, vh=vid.videoHeight||1280;
+  var k=Math.max(r.width/vw, r.height/vh), dw=vw*k, dh=vh*k;
+  var ox=r.left+(r.width-dw)/2, oy=r.top+(r.height-dh)/2;
+  return {left:ox+WM.x0*dw, top:oy+WM.y0*dh, right:ox+WM.x1*dw, bottom:oy+WM.y1*dh, screen:$('#screen').getBoundingClientRect()};
+}
+function checkCover(){
+  var w=wmRect(), bad=0, seen=0;
+  for(var a=0;a<=4;a++) for(var b=0;b<=4;b++){
+    var x=w.left+(w.right-w.left)*a/4, y=w.top+(w.bottom-w.top)*b/4;
+    if(x<w.screen.left||x>w.screen.right||y<w.screen.top||y>w.screen.bottom) continue; // 被裁掉的點等於看不到
+    seen++;
+    var el=document.elementFromPoint(x,y);
+    if(!el || el===vid || el===poster || el.id==='screen') bad++;
+  }
+  return {ok:bad===0, points:seen, bad:bad};
+}
+function drawWm(on){
+  var box=$('#wmbox'), w=wmRect(), s=w.screen;
+  box.style.display = on?'block':'none';
+  box.style.left=(w.left-s.left)+'px'; box.style.top=(w.top-s.top)+'px';
+  box.style.width=(w.right-w.left)+'px'; box.style.height=(w.bottom-w.top)+'px';
+}
+
+/* ── 接線 ── */
+$('#av').style.backgroundImage='url("assets/poster.webp")';
+$('#av').style.backgroundPosition='52% 6%';
+$('#av').style.backgroundSize='340%';
+
+Object.keys(NIGHTS).forEach(function(n){
+  var b=document.createElement('button'); b.type='button'; b.dataset.n=n;
+  b.textContent=NIGHTS[n].label;
+  b.addEventListener('click',function(){ start(Number(n)); });
+  $('#nights').appendChild(b);
+});
+$('#replay').addEventListener('click',function(){ start(night); });
+$('#check').addEventListener('click',function(){
+  var r=checkCover();
+  out.innerHTML = r.ok
+    ? '<span class="ok">蓋住了。</span>浮水印範圍取樣 '+r.points+' 點，全部命中底部介面，一點都沒有露出影片。'
+    : '<span class="no">沒蓋住。</span>'+r.points+' 點裡有 '+r.bad+' 點直接打到影片，那幾點會看見浮水印。';
+});
+$('#showwm').addEventListener('click',function(){
+  var on=$('#wmbox').style.display!=='block'; drawWm(on);
+  out.textContent = on ? '紅框就是浮水印所在，正常情況下它應該整個埋在聊天室與輸入列底下。' : '';
+});
+$('#like').addEventListener('click',function(){
+  var on=this.className.indexOf('liked')<0;
+  this.className='act'+(on?' liked':'');
+  likes+=on?1:-1; $('#likes').textContent=fmt(likes); if(on) fly();
+});
+$('#heart').addEventListener('click',function(){ likes++; $('#likes').textContent=fmt(likes); fly(); fly(); });
+$('#follow').addEventListener('click',function(){
+  var on=this.className!=='on'; this.className=on?'on':''; this.textContent=on?'追蹤中':'追蹤';
+});
+$('#sound').addEventListener('click',function(){
+  vid.muted=!vid.muted;
+  this.querySelector('.ic').textContent = vid.muted?'◁':'◀';
+  this.querySelector('small').textContent = vid.muted?'靜音':'有聲';
+});
+$('#gift').addEventListener('click',function(){ post('你','送出了一個罐頭','sys'); for(var i=0;i<5;i++) later(fly,i*90); });
+$('#share').addEventListener('click',function(){ post('你','把連結複製走了','sys'); });
+window.addEventListener('resize',function(){ if($('#wmbox').style.display==='block') drawWm(true); });
+if(location.search.indexOf('wm=1')>=0) later(function(){ drawWm(true); },2600);
+
+start(2);
+window.checkCover=checkCover; window.wmRect=wmRect;   // Playwright / console 用
+</script>
+</html>
