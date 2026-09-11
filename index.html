@@ -37,40 +37,44 @@ body{background:
 #vid{z-index:0}
 
 /* ── 直播介面 ── */
-.scrim-t{position:absolute;z-index:3;left:0;right:0;top:0;height:34%;
-  background:linear-gradient(rgba(4,6,10,.82),rgba(4,6,10,.42) 45%,transparent);pointer-events:none}
+/* 頂端只留一列，不然會壓到她的臉（她在畫面裡的眼睛大約在螢幕 8%～11%） */
+.scrim-t{position:absolute;z-index:3;left:0;right:0;top:0;height:19%;
+  background:linear-gradient(rgba(4,6,10,.85),rgba(4,6,10,.4) 52%,transparent);pointer-events:none}
 /* 影片右下角的浮水印在螢幕 84%～96% 之間（見 index.html 頂部 WM），所以這一塊到 64%（＝螢幕 84%）就要是實心，
    半透明的遮罩只會把浮水印壓暗、壓不掉。 */
 .scrim-b{position:absolute;z-index:3;left:0;right:0;bottom:0;height:46%;pointer-events:none;
   background:linear-gradient(transparent,rgba(4,6,10,.42) 28%,rgba(4,6,10,.88) 54%,#04060a 64%,#04060a)}
 
-#hdr{position:absolute;z-index:6;left:0;right:0;top:0;padding:14px 12px 0;display:flex;align-items:center;gap:9px}
-#hdr .av{flex:none;width:38px;height:38px;border-radius:50%;background:#2a2d36 center/cover no-repeat;
-  box-shadow:0 0 0 2px var(--purple),0 0 14px rgba(183,139,255,.55)}
+#hdr{position:absolute;z-index:6;left:0;right:0;top:0;padding:11px 11px 0;display:flex;align-items:center;gap:8px}
+#hdr .av{flex:none;width:34px;height:34px;border-radius:50%;background:#2a2d36 center/cover no-repeat;
+  box-shadow:0 0 0 2px var(--purple),0 0 12px rgba(183,139,255,.5)}
 #hdr .who{flex:1;min-width:0}
-#hdr .nm{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;letter-spacing:.02em}
-#hdr .nm i{font-style:normal;color:var(--cy);font-size:12px}
-#hdr .sub{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#follow{appearance:none;border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:700;
-  padding:7px 14px;border-radius:999px;background:var(--cy);color:#04080c;transition:background .15s}
+#hdr .nm{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;letter-spacing:.02em;
+  text-shadow:0 1px 5px rgba(0,0,0,.8)}
+#hdr .nm i{font-style:normal;color:var(--cy);font-size:11px}
+#hdr .sub{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:10.5px;color:#b7c4cb;
+  font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 1px 5px rgba(0,0,0,.85)}
+#hdr .sub .sep{color:var(--faint)}
+#follow{appearance:none;border:0;cursor:pointer;font:inherit;font-size:11.5px;font-weight:700;
+  padding:6px 13px;border-radius:999px;background:var(--cy);color:#04080c;transition:background .15s}
 #follow:hover{background:var(--mint)}
 #follow.on{background:rgba(255,255,255,.12);color:var(--text)}
 
-#meta{position:absolute;z-index:6;left:12px;top:62px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.pill{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:6px;
-  font-size:11px;font-weight:700;letter-spacing:.06em;background:rgba(8,10,16,.66);
+.pill{display:inline-flex;align-items:center;gap:4px;height:17px;padding:0 6px;border-radius:4px;
+  font-size:9.5px;font-weight:700;letter-spacing:.08em;background:rgba(8,10,16,.66);
   backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.1)}
 .pill.live{background:var(--red);border-color:transparent;color:#fff}
 .pill.live.wait{background:rgba(8,10,16,.66);border:1px solid rgba(255,255,255,.1);color:var(--muted)}
 .pill.live.wait b{background:var(--muted)}
-.pill.live b{width:6px;height:6px;border-radius:50%;background:#fff;animation:blink 1.6s steps(1,end) infinite}
+.pill.live b{width:5px;height:5px;border-radius:50%;background:#fff;animation:blink 1.6s steps(1,end) infinite}
 @keyframes blink{0%,60%{opacity:1}61%,100%{opacity:.15}}
-.pill .eye{width:13px;height:9px;border-radius:0 0 50% 50%/0 0 100% 100%;box-shadow:inset 0 0 0 1.4px currentColor;
+.eye{display:inline-block;width:12px;height:8px;border-radius:0 0 50% 50%/0 0 100% 100%;box-shadow:inset 0 0 0 1.4px currentColor;
   border-top:1.4px solid currentColor;border-radius:50%;position:relative}
-.pill .eye::after{content:"";position:absolute;inset:3px 4.5px;border-radius:50%;background:currentColor}
+.eye::after{content:"";position:absolute;inset:3px 4.5px;border-radius:50%;background:currentColor}
 
-#title{position:absolute;z-index:6;left:12px;right:52px;top:92px;font-size:13px;line-height:1.5;
-  color:var(--text);text-shadow:0 1px 6px rgba(0,0,0,.8)}
+#title{position:absolute;z-index:6;left:12px;right:58px;bottom:258px;font-size:12.5px;line-height:1.55;
+  color:var(--text);text-shadow:0 1px 6px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.6)}
+#title #when{display:block;font-size:10.5px;color:#b7c4cb;margin-bottom:3px;letter-spacing:.04em}
 
 /* 右側動作列 */
 #rail{position:absolute;z-index:6;right:8px;bottom:150px;display:flex;flex-direction:column;gap:14px;align-items:center}
@@ -148,17 +152,16 @@ body{background:
     <div class="av" id="av"></div>
     <div class="who">
       <div class="nm">格莉奇 <i>✦</i></div>
-      <div class="sub" id="sub"></div>
+      <div class="sub">
+        <span class="pill live" id="livepill"><b></b>LIVE</span>
+        <span class="eye"></span><span id="viewers">0</span>
+        <span class="sep">・</span><span id="elapsed">00:00</span>
+      </div>
     </div>
     <button id="follow" type="button">追蹤</button>
   </div>
 
-  <div id="meta">
-    <span class="pill live" id="livepill"><b></b>LIVE</span>
-    <span class="pill"><span class="eye"></span><span id="viewers">0</span></span>
-    <span class="pill" id="elapsed">00:00</span>
-  </div>
-  <div id="title"></div>
+  <div id="title"><span id="when"></span><span id="ttl"></span></div>
 
   <div id="rail">
     <button class="act" id="like" type="button"><span class="ic">♡</span><small id="likes">0</small></button>
@@ -275,8 +278,8 @@ function start(n){
   clear(); night=n; var cfg=NIGHTS[n];
   chat.textContent=''; poster.style.opacity='';
   $('#load').className=''; $('#lbar i').style.width='0'; $('#lmsg').textContent=STEPS[0][1];
-  $('#title').textContent=cfg.title;
-  $('#sub').textContent=cfg.label+'・'+cfg.since;
+  $('#ttl').textContent=cfg.title;
+  $('#when').textContent=cfg.label+'・'+cfg.since;
   viewers=cfg.from; $('#viewers').textContent=fmt(viewers);
   likes=cfg.likes; $('#likes').textContent=fmt(likes);
   $('#elapsed').textContent='00:00';
