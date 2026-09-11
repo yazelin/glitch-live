@@ -2,8 +2,13 @@
 
 《格莉奇與黑洞先生・調查篇》裡，背包那支手機長什麼樣子。四頁完整原型。
 
-這是**畫面原型**，不是 Larch 卡片。目的只有一個：在動 Larch 之前，先把手機做出來看過。
-確認之後才把介面搬進 [glitch-vn](https://github.com/yazelin/glitch-vn) 的 `larch/cards/phone.html`。
+`card.html` **就是 Larch 卡片本體**，整合時整份複製成
+[glitch-vn](https://github.com/yazelin/glitch-vn) 的 `larch/cards/phone.html`。
+`index.html` 是預覽殼，扮演 Larch 當宿主，用同一套 postMessage 協定
+（`larch:ready` / `larch:init` / `larch:set` / `larch:complete`）餵變數給它，
+並把卡片寫回來的變數印在右邊。所以在這裡看到的，就是遊戲裡會看到的。
+
+**現在不要整合。** 時機與做法見 [`整合回-glitch-vn.md`](整合回-glitch-vn.md)。
 
 看這裡 → <https://yazelin.github.io/glitch-live/>
 
@@ -41,7 +46,7 @@
 `x 0.78–0.90、y 0.86–0.95`，峰值比周圍的地板亮 28 階。半透明的遮罩只會把它壓暗、壓不掉，
 所以底部那塊遮罩到螢幕 84% 就是實心的，浮水印整個埋在下面。
 
-驗法四項，`node verify.mjs` 會跑：
+驗法四項，`node verify.mjs` 會跑（全部十五項）：
 
 | 測什麼 | 怎麼測 | 過的條件 |
 |---|---|---|
@@ -67,16 +72,29 @@ node verify.mjs --headed   # 開視窗看
 ## 檔案
 
 ```
-index.html                 整份原型（四頁、三晚、假載入、浮水印檢查都在裡面）
+card.html                  卡片本體。整合時整份複製成 glitch-vn/larch/cards/phone.html
+index.html                 預覽殼，扮演 Larch 當宿主。不進遊戲
+整合回-glitch-vn.md        整合方案與驗收清單
 assets/live-loop.mp4       直播畫面，720×1280、10 秒、首尾同幀可以無縫循環
 assets/poster.webp         載入時的預覽圖，也是頭像的來源
 ref/                       設計參考圖
 verify.mjs                 驗收腳本
 ```
 
+## 兩種模式
+
+卡片跟舊的 `phone.html` 一樣吃推送層注入的 `MODE`：
+
+- `full`　從背包打開，四頁。收起來時寫 `open_phone=false` 與 `phone_day_seen`。
+- `banner`　收到訊息的橫幅，頂端一條，兩秒後把那一則寫進 `phone_log`，自己 `larch:complete`。
+  底是透明的（`調查篇-手機.md` 六），預覽殼會在 iframe 後面放一張圖，透得出來就看得到她。
+
+主控台的「模式」那兩顆可以切。
+
 ## 搬進 Larch 之前要處理的
 
-見 `NEXT.md`。
+見 [`整合回-glitch-vn.md`](整合回-glitch-vn.md)。還沒拍板的三件在第五節：
+影片放哪、第五天的留言橋段怎麼接、**電話那一格要不要存在**。
 
 ## 授權
 

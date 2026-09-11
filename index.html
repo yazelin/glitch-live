@@ -5,28 +5,22 @@
 <title>格莉奇・她的手機（畫面原型）</title>
 <meta name="description" content="《格莉奇與黑洞先生・調查篇》背包裡那支手機，四頁完整原型。先在這裡驗畫面，確認之後才搬進 Larch。">
 <!--
-  這是原型，不是 Larch 卡片。驗完畫面才把介面搬進 glitch-vn 的 larch/cards/phone.html。
-  內容照 glitch-vn/design/調查篇-手機.md 與 調查篇-直播.md，沒有自己加設定。
-  影片右下角有 Gemini 浮水印，底部聊天室、輸入列與分頁列負責蓋住它；
-  ?wm=1 會把浮水印框畫出來，主控台的「驗浮水印」按鈕跑命中測試。
+  這是**預覽殼**，不進遊戲。卡片本體是 card.html，整合時整份複製成 glitch-vn/larch/cards/phone.html。
+  這一頁扮演 Larch 當宿主：用同一套 postMessage 協定（larch:ready / larch:init / larch:set / larch:complete）
+  餵變數給 iframe，並把卡片寫回來的變數印在右邊。所以在這裡看到的，就是遊戲裡會看到的。
 -->
 <style>
 :root{
   --bg:#04080c; --win:#11161b; --sunk:#0a1319; --body:#15171d; --edge:#2a2d36;
-  --panel:#0c1116; --card:#121920; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
   --cy:#25c2e8; --mint:#7cf3c0; --purple:#b78bff;
-  --text:#dfe8ec; --muted:#93a3ac; --faint:#6d7d84; --red:#e0323f;
+  --text:#dfe8ec; --muted:#93a3ac; --faint:#6d7d84;
 }
 *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(183,139,255,.4) transparent}
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(183,139,255,.4);border-radius:4px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(183,139,255,.65)}
-/* 手機螢幕裡面那條要更不起眼，真的手機是一條半透明的白 */
-#page{scrollbar-color:rgba(255,255,255,.2) transparent}
-#page::-webkit-scrollbar{width:4px}
-#page::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
-#page::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.34)}
 html,body{margin:0;min-height:100%}
 body{background:
     radial-gradient(1100px 700px at 50% -10%,rgba(183,139,255,.16),transparent 62%),
@@ -37,195 +31,20 @@ body{background:
   display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;justify-content:center;
   padding-block:36px;padding-left:16px;padding-right:16px}
 
-/* ── 手機殼（沿用 glitch-vn/larch/cards/phone.html 的規格） ── */
+/* 手機殼是預覽殼的東西，不是卡片的。Larch 裡卡片就是整個畫面。 */
 #phone{position:relative;flex:none;width:min(390px,92vw);height:min(800px,88vh);min-height:620px;
   background:var(--body);border-radius:38px;padding:12px;
   box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 0 2px var(--edge),0 0 60px rgba(183,139,255,.12)}
-#screen{position:relative;width:100%;height:100%;border-radius:28px;overflow:hidden;background:#07080c;isolation:isolate}
-#vid,#poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-#poster{z-index:1}
-#vid{z-index:0}
+#frame{position:relative;width:100%;height:100%;border:0;border-radius:28px;display:block;background:transparent}
+/* 橫幅模式時在 iframe 後面放一張，透得出來就看得到她，白掉或黑掉就是卡片沒透明 */
+#phone.banner{background:var(--body) url("assets/poster.webp") center/cover no-repeat}
+#phone.banner::before{content:"";position:absolute;inset:12px;border-radius:28px;background:rgba(4,8,12,.35)}
 
-/* ══ 直播頁 ══ */
-/* 頂端只留一列，不然會壓到她的臉（她在畫面裡的眼睛落在螢幕 8%～11%） */
-.scrim-t{position:absolute;z-index:3;left:0;right:0;top:0;height:19%;
-  background:linear-gradient(rgba(4,6,10,.85),rgba(4,6,10,.4) 52%,transparent);pointer-events:none}
-/* 浮水印在螢幕 84%～96% 之間（見頁尾的 WM），所以這一塊到 60% 就要是實心，
-   半透明的遮罩只會把浮水印壓暗、壓不掉。 */
-.scrim-b{position:absolute;z-index:3;left:0;right:0;bottom:0;height:46%;pointer-events:none;
-  background:linear-gradient(transparent,rgba(4,6,10,.42) 26%,rgba(4,6,10,.88) 50%,#04060a 60%,#04060a)}
-.live-ui{transition:opacity .25s}
-#screen.off .live-ui{opacity:0;pointer-events:none}
-
-#hdr{position:absolute;z-index:6;left:0;right:0;top:0;padding:11px 11px 0;display:flex;align-items:center;gap:8px}
-#hdr .av{flex:none;width:34px;height:34px;border-radius:50%;background:#2a2d36 center/cover no-repeat;
-  box-shadow:0 0 0 2px var(--purple),0 0 12px rgba(183,139,255,.5)}
-#hdr .who{flex:1;min-width:0}
-#hdr .nm{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;letter-spacing:.02em;
-  text-shadow:0 1px 5px rgba(0,0,0,.8)}
-#hdr .nm i{font-style:normal;color:var(--cy);font-size:11px}
-#hdr .sub{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:10.5px;color:#b7c4cb;
-  font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 1px 5px rgba(0,0,0,.85)}
-#hdr .sub .sep{color:var(--faint)}
-#follow{appearance:none;border:0;cursor:pointer;font:inherit;font-size:11.5px;font-weight:700;
-  padding:6px 13px;border-radius:999px;background:var(--cy);color:#04080c;transition:background .15s}
-#follow:hover{background:var(--mint)}
-#follow.on{background:rgba(255,255,255,.12);color:var(--text)}
-
-.pill{display:inline-flex;align-items:center;gap:4px;height:17px;padding:0 6px;border-radius:4px;
-  font-size:9.5px;font-weight:700;letter-spacing:.08em;background:rgba(8,10,16,.66);
-  backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.1)}
-.pill.live{background:var(--red);border-color:transparent;color:#fff}
-.pill.live.wait{background:rgba(8,10,16,.66);border:1px solid rgba(255,255,255,.1);color:var(--muted)}
-.pill.live.wait b{background:var(--muted)}
-.pill.live b{width:5px;height:5px;border-radius:50%;background:#fff;animation:blink 1.6s steps(1,end) infinite}
-@keyframes blink{0%,60%{opacity:1}61%,100%{opacity:.15}}
-.eye{display:inline-block;width:12px;height:8px;box-shadow:inset 0 0 0 1.4px currentColor;
-  border-top:1.4px solid currentColor;border-radius:50%;position:relative}
-.eye::after{content:"";position:absolute;inset:3px 4.5px;border-radius:50%;background:currentColor}
-
-#title{position:absolute;z-index:6;left:12px;right:58px;bottom:306px;font-size:12.5px;line-height:1.55;
-  color:var(--text);text-shadow:0 1px 6px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.6)}
-#title #when{display:block;font-size:10.5px;color:#b7c4cb;margin-bottom:3px;letter-spacing:.04em}
-
-#rail{position:absolute;z-index:6;right:8px;bottom:250px;display:flex;flex-direction:column;gap:13px;align-items:center}
-.act{appearance:none;border:0;cursor:pointer;font:inherit;color:var(--text);background:none;
-  display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;line-height:1}
-.act .ic{width:40px;height:40px;border-radius:50%;background:rgba(10,13,19,.6);backdrop-filter:blur(6px);
-  border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;
-  font-size:16px;transition:transform .12s,background .15s}
-.act:hover .ic{background:rgba(37,194,232,.22);transform:translateY(-2px)}
-.act small{font-size:10px;color:#cfd9df;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px rgba(0,0,0,.9)}
-.act.liked .ic{background:rgba(224,50,63,.3);border-color:rgba(224,50,63,.6)}
-.act.liked small{color:#ff8b93}
-
-#chatwrap{position:absolute;z-index:5;left:0;right:0;bottom:104px;height:190px;
-  -webkit-mask-image:linear-gradient(transparent,#000 44px);mask-image:linear-gradient(transparent,#000 44px)}
-#chat{position:absolute;inset:0;overflow:hidden;padding:0 12px 4px;display:flex;flex-direction:column;justify-content:flex-end;gap:5px}
-.row{display:flex;gap:6px;align-items:baseline;font-size:12.5px;line-height:1.45;
-  animation:rise .26s ease-out;text-shadow:0 1px 4px rgba(0,0,0,.85);transition:opacity .6s}
-@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.row .id{flex:none;font-weight:700;font-size:11.5px}
-.row .tx{color:#eef3f6;word-break:break-word}
-.row.link .tx{color:var(--cy);text-decoration:underline;text-underline-offset:2px}
-.row.read{background:rgba(124,243,192,.14);border-left:2px solid var(--mint);
-  border-radius:0 6px 6px 0;padding:3px 7px;margin-left:-9px}
-.row.mine{background:rgba(183,139,255,.18);border-left:2px solid var(--purple);
-  border-radius:0 6px 6px 0;padding:3px 7px;margin-left:-9px}
-.row.mine .id{color:var(--purple)}
-.row.gone{opacity:0}
-.row.sys .tx{color:var(--faint)}
-
-#bar{position:absolute;z-index:6;left:0;right:0;bottom:52px;height:52px;display:flex;align-items:center;gap:8px;
-  padding:0 12px 6px;background:#04060a}
-#say{flex:1;height:36px;border-radius:999px;background:rgba(255,255,255,.09);
-  border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;padding:0 14px;
-  font-size:12.5px;color:#9aa7b0;cursor:pointer}
-#say.hot{border-color:var(--purple);color:#cbb6f5}
-#heart{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.14);
-  background:rgba(255,255,255,.09);color:#ff7d87;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-#hearts{position:absolute;z-index:5;right:6px;bottom:104px;width:46px;height:190px;pointer-events:none;overflow:hidden}
-.hb{position:absolute;bottom:0;left:12px;font-size:15px;color:#ff7d87;animation:fly 2.1s ease-out forwards}
-@keyframes fly{0%{opacity:0;transform:translate(0,0) scale(.6)}
-  12%{opacity:1}100%{opacity:0;transform:translate(var(--dx,-14px),-170px) scale(1.15)}}
-
-/* 假載入 */
-#load{position:absolute;z-index:4;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-  background:rgba(4,6,10,.4);backdrop-filter:blur(11px);transition:opacity .45s}
-#load.gone{opacity:0;pointer-events:none}
-#ring{width:46px;height:46px;border-radius:50%;border:2.5px solid rgba(255,255,255,.14);
-  border-top-color:var(--cy);animation:spin .82s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#lmsg{font-size:12.5px;color:var(--muted);letter-spacing:.04em}
-#lbar{width:158px;height:3px;border-radius:2px;background:rgba(255,255,255,.13);overflow:hidden}
-#lbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cy),var(--mint))}
-@media (prefers-reduced-motion:reduce){#ring,.pill.live b,.row{animation:none}}
-
-/* ══ 其餘三頁 ══ */
-#page{position:absolute;z-index:7;left:0;right:0;top:0;bottom:52px;background:var(--panel);
-  overflow-y:auto;-webkit-overflow-scrolling:touch;display:none}
-#screen.page-on #page{display:block}
-#screen.tab-msg #page{display:flex;flex-direction:column}
-#status{display:flex;justify-content:space-between;align-items:center;padding:13px 16px 8px;
-  font-size:11px;color:var(--faint);letter-spacing:.05em;position:sticky;top:0;background:var(--panel);z-index:2}
-#status b{color:var(--muted);font-weight:600}
-#status .sb{display:block;color:var(--faint)}   /* 訊號、Wi-Fi、電池。原本那三個 ▮ 看不出是訊號還是電量 */
-.ttl{margin:4px 16px 10px;font-size:17px;font-weight:700;letter-spacing:.02em}
-.empty{margin:52px 22px;color:var(--faint);font-size:13px;line-height:2.1;text-align:center}
-
-/* 訊息 */
-.msg{display:flex;gap:10px;padding:9px 14px}
-.msg .av{flex:none;width:34px;height:34px;border-radius:11px;background:#222a33 center/cover no-repeat;
-  display:flex;align-items:center;justify-content:center;font-size:12px;color:#8e9aa4}
-.msg .bd{max-width:80%}
-.msg .who{font-size:10.5px;color:var(--faint);margin:0 0 3px 2px}
-.msg .bub{background:var(--card);border:1px solid var(--line);border-radius:4px 14px 14px 14px;
-  padding:8px 12px;font-size:13px;line-height:1.65;color:var(--text)}
-.msg .when{font-size:10px;color:var(--faint);margin:4px 0 0 3px}
-#reply{display:flex;gap:8px;padding:10px 12px 14px;margin-top:auto;border-top:1px solid var(--line)}
-#reply span{flex:1;border:1px solid var(--line);border-radius:18px;padding:8px 13px;font-size:12.5px;
-  color:#4e5a62;background:var(--sunk)}
-#reply i{width:34px;border-radius:50%;background:#1a222a}
-
-/* 格莉奇的頁面 */
-.prof{display:flex;gap:12px;align-items:center;padding:6px 16px 12px}
-.prof .av{flex:none;width:54px;height:54px;border-radius:50%;background:#222a33 center/cover no-repeat;
-  box-shadow:0 0 0 2px var(--purple)}
-.prof b{display:block;font-size:15px}
-.prof small{display:block;color:var(--faint);font-size:11.5px;margin-top:3px}
-.prof .cnt{margin-top:5px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
-.post{border-top:7px solid #070b0f;padding:12px 16px 8px}
-.post .day{font-size:10.5px;color:var(--faint);margin-bottom:6px;letter-spacing:.04em}
-.post .txt{font-size:13.5px;line-height:1.8;white-space:pre-line}
-.cm{margin:9px 0 0;padding:8px 0 2px;border-top:1px solid var(--line)}
-.cm .c{display:flex;gap:7px;font-size:12px;line-height:1.65;padding:3px 0;align-items:baseline}
-.cm .id{flex:none;font-weight:700}
-.cm .id.del{color:#5c6169;font-weight:400;text-decoration:line-through}
-.cm .t{color:#c7d2d8} .cm .tm{margin-left:auto;color:var(--faint);font-size:10.5px;flex:none}
-.old{border-top:7px solid #070b0f;padding:12px 16px 22px}
-.old .day{font-size:10.5px;color:var(--faint);margin-bottom:6px}
-.old .note{font-size:10.5px;color:#4e5a62;margin-top:8px}
-
-/* 直播・沒開台 */
-.offair{padding:14px 16px 20px}
-.offair .box{aspect-ratio:9/13;border-radius:14px;background:var(--card) center/cover no-repeat;
-  position:relative;overflow:hidden;border:1px solid var(--line);
-  display:flex;align-items:center;justify-content:center}
-.offair .box::after{content:"";position:absolute;inset:0;background:rgba(4,8,12,.72)}
-.offair .box span{position:relative;z-index:1;font-size:12.5px;color:var(--muted);letter-spacing:.06em}
-.offair p{font-size:13px;line-height:1.9;margin:14px 2px 0}
-.offair p.dim{color:var(--faint)}
-
-/* 分頁列 */
-#tabs{position:absolute;z-index:9;left:0;right:0;bottom:0;height:52px;display:flex;
-  background:#04060a;border-top:1px solid var(--line)}
-#tabs button{flex:1;appearance:none;border:0;background:none;font:inherit;font-size:11.5px;
-  color:#6d7d84;cursor:pointer;position:relative;padding:0 0 4px;transition:color .15s}
-#tabs button.on{color:var(--cy);font-weight:700}
-#tabs button .dot{position:absolute;top:11px;right:24%;width:6px;height:6px;border-radius:50%;background:var(--red)}
-
-/* 留言（第五天） */
-#compose{position:absolute;z-index:10;inset:0;background:rgba(4,6,10,.42);backdrop-filter:blur(2px);
-  display:none;flex-direction:column;justify-content:flex-end}
-#screen.compose-on #compose{display:flex}
-#compose .sheet{background:var(--panel);border-top:1px solid var(--line2);padding:16px 14px 18px;
-  border-radius:18px 18px 0 0}
-#compose .field{min-height:44px;border:1px solid var(--line2);border-radius:12px;background:var(--sunk);
-  padding:11px 13px;font-size:13.5px;line-height:1.6;color:var(--text)}
-#compose .field i{display:inline-block;width:1.5px;height:15px;background:var(--cy);
-  vertical-align:-2px;margin-left:1px;animation:caret 1s steps(1,end) infinite}
-@keyframes caret{0%,50%{opacity:1}51%,100%{opacity:0}}
-#compose .btns{display:flex;gap:8px;margin-top:12px}
-#compose button{flex:1;appearance:none;border:1px solid var(--line2);background:var(--sunk);color:var(--text);
-  font:inherit;font-size:13px;padding:11px 0;border-radius:12px;cursor:pointer}
-#compose button.go{background:var(--cy);border-color:var(--cy);color:#04080c;font-weight:700}
-#compose button[disabled]{opacity:.4;cursor:default}
-
-/* ── 主控台（原型用，不進遊戲） ── */
-#panel{flex:none;width:min(328px,92vw);background:var(--win);border:1px solid var(--line);
+#panel{flex:none;width:min(330px,92vw);background:var(--win);border:1px solid var(--line);
   border-radius:14px;padding:18px 18px 16px}
 #panel h1{margin:0 0 4px;font-size:15px;letter-spacing:.02em}
 #panel p{margin:0 0 14px;font-size:12px;line-height:1.75;color:var(--muted)}
+#panel p code{font-size:11px;color:var(--cy)}
 #panel h2{margin:16px 0 7px;font-size:11px;letter-spacing:.12em;color:var(--faint);font-weight:700}
 .grp{display:flex;gap:6px;flex-wrap:wrap}
 .grp button{appearance:none;cursor:pointer;font:inherit;font-size:12px;padding:7px 11px;border-radius:8px;
@@ -235,76 +54,27 @@ body{background:
 #out{margin-top:12px;font-size:11.5px;line-height:1.8;color:var(--faint);white-space:pre-wrap;
   background:var(--sunk);border-radius:8px;padding:10px 12px;min-height:38px}
 #out .ok{color:var(--mint)} #out .no{color:#ff8b93}
-#wmbox{position:absolute;z-index:20;outline:2px solid #ff2f6d;background:rgba(255,47,109,.2);pointer-events:none;display:none}
+#wrote{margin-top:10px;font-size:11px;line-height:1.75;color:var(--faint);background:var(--sunk);
+  border-radius:8px;padding:10px 12px;max-height:150px;overflow-y:auto;font-variant-numeric:tabular-nums}
+#wrote b{color:var(--purple);font-weight:600}
+#wrote .done{color:var(--mint)}
+#wrote .none{color:#3f4a51}
 </style>
 
-<div id="phone"><div id="screen">
-  <video id="vid" playsinline muted loop preload="auto" poster="assets/poster.webp"></video>
-  <img id="poster" src="assets/poster.webp" alt="格莉奇在直播間裡向鏡頭揮手">
-  <div class="scrim-t live-ui"></div><div class="scrim-b live-ui"></div>
-
-  <div id="hdr" class="live-ui">
-    <div class="av" id="av"></div>
-    <div class="who">
-      <div class="nm">格莉奇 <i>✦</i></div>
-      <div class="sub">
-        <span class="pill live" id="livepill"><b></b>LIVE</span>
-        <span class="eye"></span><span id="viewers">0</span>
-        <span class="sep">・</span><span id="elapsed">00:00</span>
-      </div>
-    </div>
-    <button id="follow" type="button">追蹤</button>
-  </div>
-
-  <div id="title" class="live-ui"><span id="when"></span><span id="ttl"></span></div>
-
-  <div id="rail" class="live-ui">
-    <button class="act" id="like" type="button"><span class="ic">♡</span><small id="likes">0</small></button>
-    <button class="act" id="gift" type="button"><span class="ic">◈</span><small>抖內</small></button>
-    <button class="act" id="sound" type="button"><span class="ic">◁</span><small>靜音</small></button>
-    <button class="act" id="share" type="button"><span class="ic">↗</span><small>分享</small></button>
-  </div>
-
-  <div id="chatwrap" class="live-ui"><div id="chat"></div></div>
-  <div id="hearts" class="live-ui"></div>
-  <div id="bar" class="live-ui"><div id="say">說點什麼⋯⋯</div><div id="heart">♥</div></div>
-
-  <div id="load" class="live-ui">
-    <div id="ring"></div>
-    <div id="lmsg">連線中⋯⋯</div>
-    <div id="lbar"><i></i></div>
-  </div>
-
-  <div id="page"></div>
-
-  <nav id="tabs">
-    <button type="button" data-p="msg">訊息<span class="dot" id="dot-msg" hidden></span></button>
-    <button type="button" data-p="feed">格莉奇<span class="dot" id="dot-feed" hidden></span></button>
-    <button type="button" data-p="live">直播</button>
-    <button type="button" data-p="call">電話</button>
-  </nav>
-
-  <div id="compose"><div class="sheet">
-    <div class="field" id="cfield"></div>
-    <div class="btns">
-      <button type="button" id="ccancel">不打</button>
-      <button type="button" id="csend" class="go" disabled>送出去</button>
-    </div>
-  </div></div>
-
-  <div id="wmbox"></div>
-</div></div>
+<div id="phone"><iframe id="frame" src="card.html" title="她的手機"></iframe></div>
 
 <div id="panel">
   <h1>她的手機・畫面原型</h1>
-  <p>《調查篇》背包裡那支手機，四頁。內容照 <code>design/調查篇-手機.md</code> 與
-     <code>調查篇-直播.md</code>。這裡只驗畫面，確認之後才搬進 Larch。</p>
+  <p>右邊這一塊是預覽殼，扮演 Larch 當宿主。手機裡跑的是 <code>card.html</code>，
+     整合時那個檔整份複製成 <code>larch/cards/phone.html</code>。做法見 <code>整合回-glitch-vn.md</code>。</p>
   <h2>第幾天（板到第十三天）</h2>
   <div class="grp" id="days"></div>
   <h2>什麼時候</h2>
   <div class="grp" id="slots"></div>
   <h2>旗標（訊息靠它，不靠天數）</h2>
   <div class="grp" id="flags"></div>
+  <h2>模式</h2>
+  <div class="grp" id="modes"></div>
   <h2>驗收</h2>
   <div class="grp">
     <button type="button" id="replay">重播載入</button>
@@ -312,359 +82,79 @@ body{background:
     <button type="button" id="showwm">顯示浮水印框</button>
   </div>
   <div id="out">她在第二、五、八天的晚上開台，其他時候直播頁是離線的。第五天開台時輸入框可以按，那是設計文件裡那個留言橋段。</div>
+  <h2>卡片寫回來的變數</h2>
+  <div id="wrote"><span class="none">還沒有。</span></div>
 </div>
 
 <script>
 'use strict';
-/* 影片原生 720×1280，Gemini 星形浮水印量到的位置，取正規化座標再放寬一點當安全框 */
-var WM = {x0:.78, y0:.86, x1:.90, y1:.95};
-var LIVE_DAYS = [2,5,8];
-var SLOTS = ['上午','下午','晚上','深夜'];
-var CN = '〇一二三四五六七八九十';
-
-/* ── 直播三晚（design/調查篇-直播.md） ── */
-var NIGHTS = {
-  2:{ title:'今天的事情有點多，我們一件一件來。',
-      from:612, to:743, gap:330, likes:4820, since:'開台 4 分鐘', last:'早安',
-      lines:[
-        ['早安人','早安'],['今天也在','來了'],['CatGrass_80','在'],
-        ['魚缸不用洗','逼——嗶'],['Tower_Manager','晚安'],
-        ['早安人','早安'],['夜班司機','剛下班衝進來'],
-        ['Bambi_Draft3','今天的頭髮很好看'],['今天也在','一件一件來'],
-        ['八百人達成','人數又跳了'],['Null_0x99','21:04:12'],
-        ['早安人','早安'],['CatGrass_80','聽得到'],['魚缸不用洗','開場那句一模一樣'],
-        ['沒睡的人','字都一樣欸'],['今天也在','本來就一樣啊'],
-        ['Tower_Manager','讚'],['早安人','早安']
-      ]},
-  5:{ title:'今天也在，謝謝你。早安人，謝謝你，現在是晚上喔。',
-      from:688, to:812, gap:520, likes:7311, since:'開台 13 分鐘', last:'今天講到哪了',
-      compose:true,
-      lines:[
-        ['今天也在','今天也在','read'],['早安人','早安','read'],
-        ['CatGrass_80','今天講到哪了','read'],
-        ['借過一下','她唸到我了'],['夜班司機','排隊'],
-        ['魚缸不用洗','我也想被唸'],['Bambi_Draft3','第四十一版畫完了'],
-        ['沒睡的人','ID 好長她會卡住'],['Null_0x99','21:13:40'],
-        ['借過一下','謝謝格莉奇'],['今天也在','明天也會在'],
-        ['Tower_Manager','辛苦'],['早安人','早安']
-      ]},
-  8:{ title:'逼——嗶！大家好，我是格莉奇。',
-      from:901, to:1094, gap:300, likes:15904, since:'開台 1 分鐘', last:'這集有我',
-      lines:[
-        ['早安人','早安'],['今天也在','早安'],['魚缸不用洗','早安'],
-        ['夜班司機','早安'],['沒睡的人','早安（晚上九點）'],
-        ['借過一下','早安'],['CatGrass_80','早安'],
-        ['剪片的','金魚腦合輯 第七集','link'],
-        ['第七集有我','這集有我','read'],['今天也在','笑死'],
-        ['早安人','早安'],['Bambi_Draft3','第七集的縮圖是我畫的'],
-        ['Tower_Manager','讚'],['魚缸不用洗','排隊看自己有沒有在裡面'],
-        ['Null_0x99','21:00:00'],['早安人','早安']
-      ]}
-};
-/* 第五天那個留言橋段：她打了一行，把「昨天」那半句砍掉重打，送出去，四秒就不見了 */
-var DRAFT = { first:'你記得昨天講到哪嗎', keep:3, then:'開場講了什麼嗎' };
-
-/* ── 官方帳號的貼文（design/調查篇-手機.md 二之二） ── */
-var POSTS = [
-  {day:1, text:'《守則本》限時預購中。內頁空白，你們可以自己寫。',
-   comments:[{id:'Bambi_Draft3',text:'內頁的格線重排過了，這一版對了。'},{id:'CatGrass_80',text:'買了。'}]},
-  {day:1, text:'這個月的周邊有新東西喔。便利商店的立牌會站到月底。',
-   comments:[{id:'Tower_Manager',text:'月底。'},{id:'今天也在',text:'買了兩包。'},{id:'早安人',text:'早安'}]},
-  {day:2, text:'跟 @Null_0x99 的聯動排在下週。猜歌，不用兩個人講話。',
-   comments:[{id:'Null_0x99',text:'週四 21:00:00。'},{id:'CatGrass_80',text:'她記得排程？'}]},
-  {day:3, text:'新的插畫。畫她的人說這一版嘴角對了。',
-   comments:[{id:'Bambi_Draft3',text:'第四十一版。'},{id:'Tower_Manager',text:'辛苦。'}]},
-  {day:4, text:'今晚也會開台。我會記得你們的。',
-   comments:[{id:'CatGrass_80',text:'在。',tm:'02:40'},{id:'早安人',text:'早安'}]},
-  {day:6, text:'手辦店的貨到了。',
-   comments:[{id:'CatGrass_80',text:'拿了兩個。'},{id:'Bambi_Draft3',text:'盒子的正面請朝外。'}]},
-  {day:8, text:'金魚腦合輯第七集有人剪好了。謝謝你們。',
-   comments:[{id:'第七集有我',text:'這集有我'},{id:'Tower_Manager',text:'（讚）'}]}
-];
-var OLD = [
-  {id:'考完就刪', text:'妳的麥克風有雜訊，接地應該沒接好。', deleted:true},
-  {id:'考完就刪', text:'我剛剛考完了。', deleted:true},
-  {id:'格莉奇', text:'謝謝你！我會記得的。', self:true}
-];
-/* 訊息＝變數 phone_log。三則推播照她開台的晚上一則一則進來，另外兩則靠旗標，
-   跟天數無關（design/調查篇-手機.md 二之一）。旗標在主控台自己開，開的時候記下是第幾天。 */
-var FLAGS = { met_櫃檯:0, open_studio:0 };
+var LIVE_DAYS=[2,5,8], SLOTS=['上午','下午','晚上','深夜'], CN='〇一二三四五六七八九十';
 var FLAG_MSG = {
-  met_櫃檯:   {who:'公關窗口', text:'您的來信已收到，我們將於三至五個工作天內回覆。'},
-  open_studio:{who:'斑比',     text:'有空來工作室。稿子帶著。'}
+  met_櫃檯:   {label:'見過櫃檯',   who:'公關窗口', text:'您的來信已收到，我們將於三至五個工作天內回覆。'},
+  open_studio:{label:'工作室開了', who:'斑比',     text:'有空來工作室。稿子帶著。'}
 };
-
-var STEPS = [[0,'連線中⋯⋯'],[420,'取得串流網址⋯⋯'],[980,'緩衝中 720p'],[1620,'進入聊天室⋯⋯'],[2180,'開始播放']];
-var HUE = {}, nextHue = 168;
-
-var $ = function(s){ return document.querySelector(s); };
-var screen=$('#screen'), vid=$('#vid'), poster=$('#poster'), chat=$('#chat'), out=$('#out'), page=$('#page');
-var day=8, slot=2, tab='live', timers=[], t0=0, likes=0, viewers=0, seenDay=0, sent=false;
-
-function clear(){ timers.forEach(clearTimeout); timers.forEach(clearInterval); timers=[]; }
-function later(fn,ms){ var id=setTimeout(fn,ms); timers.push(id); return id; }
-function every(fn,ms){ var id=setInterval(fn,ms); timers.push(id); return id; }
+var day=8, slot=2, mode='full', flags={met_櫃檯:0, open_studio:0}, wrote=[];
+var $=function(s){ return document.querySelector(s); };
+var frame=$('#frame'), out=$('#out');
 function el(t,c,txt){ var e=document.createElement(t); if(c)e.className=c; if(txt!=null)e.textContent=txt; return e; }
-function fmt(n){ return n.toLocaleString('en-US'); }
-function cnNum(n){ return n<=10 ? CN[n] : '十'+CN[n-10]; }
-function cnDay(n){ return '第'+cnNum(n)+'天'; }
-function onAir(){ return LIVE_DAYS.indexOf(day)>=0 && slot>=2; }
-function colour(id){ if(!HUE[id]){ HUE[id]='hsl('+(nextHue%360)+' 72% 68%)'; nextHue+=67; } return HUE[id]; }
-function msgs(){
+function cnDay(n){ return '第'+(n<=10?CN[n]:'十'+CN[n-10])+'天'; }
+
+/* 遊戲裡 phone_log 是橫幅卡一則一則寫進去的。預覽殼照同一個規則把它算出來：
+   三則推播跟著她開台的晚上，另外兩則跟著旗標（design/調查篇-手機.md 二之一，
+   則數對過 design/調查篇-通關路線.txt 逐日的 [手機] 快照）。**這段邏輯只存在於預覽殼。** */
+function phoneLog(){
   var a=[];
   LIVE_DAYS.forEach(function(d){
     if(d<day || (d===day && slot>=2)) a.push({who:'格莉奇', text:'格莉奇 開始直播了', day:d, slot:2});
   });
-  Object.keys(FLAGS).forEach(function(k){
-    if(FLAGS[k]) a.push({who:FLAG_MSG[k].who, text:FLAG_MSG[k].text, day:FLAGS[k], slot:1});
+  Object.keys(flags).forEach(function(k){
+    if(flags[k]) a.push({who:FLAG_MSG[k].who, text:FLAG_MSG[k].text, day:flags[k], slot:1});
   });
   return a.sort(function(x,y){ return x.day-y.day || x.slot-y.slot; });
 }
-function freshPosts(){ return POSTS.some(function(p){ return p.day<=day && p.day>seenDay; }); }
-
-/* ══ 直播 ══ */
-function post(id,text,kind){
-  var r=el('div','row'+(kind?' '+kind:''));
-  var a=el('span','id','@'+id);
-  if(kind!=='mine' && kind!=='sys') a.style.color=colour(id);
-  r.appendChild(a); r.appendChild(el('span','tx',text));
-  chat.appendChild(r);
-  while(chat.children.length>14) chat.removeChild(chat.firstChild);
-  return r;
+function variables(){
+  return {day:day, slot:slot, phone_log:JSON.stringify(phoneLog()), phone_day_seen:0};
 }
-function fly(){
-  var h=el('div','hb','♥');
-  h.style.setProperty('--dx',(Math.random()*36-22).toFixed(0)+'px');
-  h.style.color='hsl('+(330+Math.random()*30)+' 90% 72%)';
-  $('#hearts').appendChild(h); setTimeout(function(){ h.remove(); },2100);
+function sendInit(){
+  frame.contentWindow.postMessage({type:'larch:init', variables:variables()}, '*');
 }
-function startLive(){
-  clear(); var cfg=NIGHTS[day]; sent=false;
-  chat.textContent=''; poster.style.opacity=''; poster.style.transition='';
-  $('#load').className='live-ui'; $('#lbar i').style.transition=''; $('#lbar i').style.width='0';
-  $('#lmsg').textContent=STEPS[0][1];
-  $('#ttl').textContent=cfg.title;
-  $('#when').textContent=cnDay(day)+'・'+cfg.since;
-  viewers=cfg.from; $('#viewers').textContent=fmt(viewers);
-  likes=cfg.likes; $('#likes').textContent=fmt(likes);
-  $('#elapsed').textContent='00:00';
-  $('#livepill').className='pill live wait'; $('#livepill').lastChild.textContent='連線中';
-  $('#like').className='act'; $('#follow').className=''; $('#follow').textContent='追蹤';
-  $('#say').className=''; $('#say').textContent='說點什麼⋯⋯';
-
-  try{ vid.pause(); vid.currentTime=0; }catch(e){}
-  if(!vid.getAttribute('src')) vid.src='assets/live-loop.mp4';
-
-  STEPS.forEach(function(s,i){
-    later(function(){
-      $('#lmsg').textContent=s[1];
-      $('#lbar i').style.transition='width .5s ease';
-      $('#lbar i').style.width=Math.round((i+1)/STEPS.length*100)+'%';
-    }, s[0]);
+function reload(){
+  wrote=[]; drawWrote();
+  $('#phone').className = mode==='banner' ? 'banner' : '';
+  var q = mode==='banner' ? '?mode=banner&who=斑比&text=' + encodeURIComponent('有空來工作室。稿子帶著。') : '';
+  frame.src = 'card.html' + q;      // 重新掛載一次，跟 Larch 進卡片的時機一樣
+}
+function drawWrote(){
+  var box=$('#wrote'); box.textContent='';
+  if(!wrote.length){ box.appendChild(el('span','none','還沒有。')); return; }
+  wrote.forEach(function(w){
+    var r=el('div', w.done?'done':null);
+    if(w.done){ r.textContent='larch:complete　卡片說它結束了'; }
+    else { r.appendChild(el('b',null,w.name)); r.appendChild(document.createTextNode('　= '+w.value)); }
+    box.appendChild(r);
   });
-  later(goLive, 2450);
+  box.scrollTop = box.scrollHeight;
 }
-function goLive(){
-  var cfg=NIGHTS[day], i=0;
-  $('#load').className='live-ui gone';
-  $('#livepill').className='pill live'; $('#livepill').lastChild.textContent='LIVE';
-  poster.style.transition='opacity .5s'; poster.style.opacity='0';
-  vid.play().catch(function(){ /* 自動播放被擋就停在首幀，海報淡掉之後仍看得到畫面 */ });
-  if(cfg.compose){ $('#say').className='hot'; $('#say').textContent='輸入框是空的⋯⋯'; }
-  t0=Date.now();
-  every(function(){
-    var s=Math.floor((Date.now()-t0)/1000);
-    $('#elapsed').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-  },500);
-  every(function(){
-    var l=cfg.lines[i%cfg.lines.length]; i++;
-    post(l[0],l[1],l[2]);
-    if(viewers<cfg.to){ viewers+=Math.ceil(Math.random()*6); $('#viewers').textContent=fmt(Math.min(viewers,cfg.to)); }
-    if(Math.random()<.45){ likes+=Math.ceil(Math.random()*3); $('#likes').textContent=fmt(likes); fly(); }
-  }, cfg.gap);
-}
-/* 第五天：打一行、改過一次、送出去，那一行四秒就滾掉了。她沒有唸到。 */
-function openCompose(){
-  if(!onAir() || !NIGHTS[day].compose || sent) return;
-  screen.classList.add('compose-on');
-  var f=$('#cfield'), go=$('#csend');
-  go.disabled=true; f.textContent='';
-  var txt=document.createTextNode(''); f.appendChild(txt); f.appendChild(el('i'));
-  var i=0;
-  function type(){
-    if(i<DRAFT.first.length){ txt.nodeValue=DRAFT.first.slice(0,++i); later(type,78); return; }
-    later(back,900);
+window.addEventListener('message', function(e){
+  var d=e.data; if(!d) return;
+  if(d.type==='larch:ready'){ sendInit(); return; }
+  if(d.type==='larch:set'){
+    var v = typeof d.value==='string' && d.value.length>46 ? d.value.slice(0,46)+'⋯' : String(d.value);
+    wrote.push({name:d.name, value:v}); drawWrote(); return;
   }
-  function back(){
-    if(txt.nodeValue.length>DRAFT.keep){ txt.nodeValue=txt.nodeValue.slice(0,-1); later(back,55); return; }
-    var j=0;
-    (function retype(){
-      if(j<DRAFT.then.length){ txt.nodeValue=DRAFT.first.slice(0,DRAFT.keep)+DRAFT.then.slice(0,++j); later(retype,78); return; }
-      go.disabled=false;
-    })();
-  }
-  later(type,240);
-}
-function sendComment(){
-  screen.classList.remove('compose-on'); sent=true;
-  $('#say').className=''; $('#say').textContent='說點什麼⋯⋯';
-  var r=post('你', $('#cfield').textContent, 'mine');
-  later(function(){ r.className='row mine gone'; later(function(){ if(r.parentNode) r.remove(); },700); }, 4000);
-}
+  if(d.type==='larch:complete'){ wrote.push({done:true}); drawWrote(); return; }
+});
 
-/* ══ 其餘三頁 ══ */
-function statusBar(){
-  var s=el('div'); s.id='status';
-  s.appendChild(el('b',null,cnDay(day)+'・'+SLOTS[slot]));
-  var g=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  g.setAttribute('class','sb'); g.setAttribute('viewBox','0 0 54 12');
-  g.setAttribute('width','54'); g.setAttribute('height','12'); g.setAttribute('aria-hidden','true');
-  g.innerHTML =
-    '<g fill="currentColor">'
-    + '<rect x="0" y="8.4" width="2.4" height="3.6" rx=".7"/>'
-    + '<rect x="3.6" y="6.4" width="2.4" height="5.6" rx=".7"/>'
-    + '<rect x="7.2" y="4.4" width="2.4" height="7.6" rx=".7"/>'
-    + '<rect x="10.8" y="2.4" width="2.4" height="9.6" rx=".7" opacity=".32"/></g>'
-    + '<g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
-    + '<path d="M18.2 6.3a6 6 0 0 1 7.6 0"/><path d="M20.2 8.5a3.2 3.2 0 0 1 3.6 0"/></g>'
-    + '<circle cx="22" cy="11" r=".95" fill="currentColor"/>'
-    + '<rect x="31" y="2.6" width="19" height="8.8" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".5"/>'
-    + '<rect x="50.8" y="5.4" width="1.6" height="3.2" rx=".8" fill="currentColor" opacity=".5"/>'
-    + '<rect x="32.5" y="4.2" width="9.6" height="5.6" rx="1.4" fill="currentColor"/>';
-  s.appendChild(g);
-  return s;
-}
-function glitchAvatar(e){
-  e.style.backgroundImage='url("assets/poster.webp")';
-  e.style.backgroundSize='340%'; e.style.backgroundPosition='52% 6%';
-}
-function drawMsg(box){
-  box.appendChild(el('div','ttl','訊息'));
-  var a=msgs();
-  if(!a.length){ box.appendChild(el('p','empty','沒有訊息。')); return; }
-  a.slice().reverse().forEach(function(m){
-    var r=el('div','msg'), av=el('div','av');
-    if(m.who==='格莉奇') glitchAvatar(av); else av.textContent=m.who.slice(0,1);
-    var bd=el('div','bd');
-    bd.appendChild(el('div','who',m.who));
-    bd.appendChild(el('div','bub',m.text));
-    bd.appendChild(el('div','when', cnDay(m.day)+(m.slot===2?'・晚上':'')));
-    r.appendChild(av); r.appendChild(bd); box.appendChild(r);
-  });
-  var rp=el('div'); rp.id='reply';
-  rp.appendChild(el('span',null,'她不回。')); rp.appendChild(el('i'));
-  box.appendChild(rp);
-}
-function comment(c){
-  var r=el('div','c');
-  var id=el('span','id'+(c.deleted?' del':''),'@'+c.id);
-  if(!c.deleted) id.style.color = c.self?'var(--purple)':colour(c.id);
-  r.appendChild(id); r.appendChild(el('span','t',c.text));
-  if(c.tm) r.appendChild(el('span','tm',c.tm));
-  return r;
-}
-function drawFeed(box){
-  var p=el('div','prof'), av=el('div','av'); glitchAvatar(av); p.appendChild(av);
-  var t=el('div');
-  t.appendChild(el('b',null,'格莉奇'));
-  t.appendChild(el('small',null,'官方帳號・每天開台'));
-  t.appendChild(el('div','cnt','追蹤 1,204,880　貼文 '+POSTS.filter(function(x){return x.day<=day;}).length));
-  p.appendChild(t); box.appendChild(p);
-
-  var shown=POSTS.filter(function(x){ return x.day<=day; }).sort(function(a,b){ return b.day-a.day; });
-  if(!shown.length) box.appendChild(el('p','empty','還沒有貼文。'));
-  shown.forEach(function(x){
-    var po=el('div','post');
-    po.appendChild(el('div','day',cnDay(x.day)));
-    po.appendChild(el('div','txt',x.text));
-    if(x.comments && x.comments.length){
-      var cm=el('div','cm');
-      x.comments.forEach(function(c){ cm.appendChild(comment(c)); });
-      po.appendChild(cm);
-    }
-    box.appendChild(po);
-  });
-  var o=el('div','old');
-  o.appendChild(el('div','day','兩年前'));
-  var cm=el('div','cm'); OLD.forEach(function(c){ cm.appendChild(comment(c)); }); o.appendChild(cm);
-  o.appendChild(el('div','note','（帳號已刪除）'));
-  box.appendChild(o);
-  seenDay=day; $('#dot-feed').hidden=true;
-}
-function drawOffair(box){
-  box.appendChild(el('div','ttl','直播'));
-  var w=el('div','offair'), b=el('div','box');
-  b.style.backgroundImage='url("assets/poster.webp")';
-  b.appendChild(el('span',null,'目前沒有直播'));
-  w.appendChild(b);
-  var last=LIVE_DAYS.filter(function(x){ return x<day || (x===day && slot<2); }).pop();
-  w.appendChild(el('p',null, last?('上次開台：'+cnDay(last)+'。'):'還沒開過台。'));
-  w.appendChild(el('p','dim', last?('聊天室最後一則：'+NIGHTS[last].last+'。'):'今晚沒開台。'));
-  box.appendChild(w);
-}
-function drawCall(box){
-  box.appendChild(el('div','ttl','電話'));
-  var c=el('div','empty');
-  c.appendChild(el('div',null,'通話紀錄是空的。'));
-  c.appendChild(el('div',null,'沒有人會打來。'));
-  box.appendChild(c);
-}
-
-/* ══ 切頁 ══ */
-var PAGES={msg:drawMsg, feed:drawFeed, live:drawOffair, call:drawCall};
-function show(p){
-  tab=p; clear(); screen.classList.remove('compose-on');
-  Array.prototype.forEach.call(document.querySelectorAll('#tabs button'),function(b){
-    b.className = b.dataset.p===p ? 'on' : ''; });
-  if(p==='msg') $('#dot-msg').hidden=true;
-
-  if(p==='live' && onAir()){
-    screen.className=''; page.textContent='';
-    startLive(); return;
-  }
-  try{ vid.pause(); }catch(e){}
-  screen.className='page-on off tab-'+p;
-  page.textContent=''; page.scrollTop=0;
-  page.appendChild(statusBar());
-  PAGES[p](page);
-}
-function setTime(d,s){
-  day=d; slot=s;
+/* ── 主控台 ── */
+function paint(){
   Array.prototype.forEach.call(document.querySelectorAll('#days button'),function(b){ b.className=Number(b.dataset.d)===day?'on':''; });
   Array.prototype.forEach.call(document.querySelectorAll('#slots button'),function(b){ b.className=Number(b.dataset.s)===slot?'on':''; });
-  $('#dot-feed').hidden=!freshPosts();
-  $('#dot-msg').hidden=!msgs().length;
-  show(tab);
+  Array.prototype.forEach.call(document.querySelectorAll('#flags button'),function(b){ b.className=flags[b.dataset.f]?'on':''; });
+  Array.prototype.forEach.call(document.querySelectorAll('#modes button'),function(b){ b.className=b.dataset.m===mode?'on':''; });
 }
+function setTime(d,s){ day=d; slot=s; paint(); sendInit(); }
+function setMode(m){ mode=m; paint(); reload(); }
 
-/* ── 浮水印覆蓋檢查 ── */
-function wmRect(){
-  var r=vid.getBoundingClientRect(), vw=vid.videoWidth||720, vh=vid.videoHeight||1280;
-  var k=Math.max(r.width/vw, r.height/vh), dw=vw*k, dh=vh*k;
-  var ox=r.left+(r.width-dw)/2, oy=r.top+(r.height-dh)/2;
-  return {left:ox+WM.x0*dw, top:oy+WM.y0*dh, right:ox+WM.x1*dw, bottom:oy+WM.y1*dh, screen:screen.getBoundingClientRect()};
-}
-function checkCover(){
-  var w=wmRect(), bad=0, pts=0;
-  for(var a=0;a<=4;a++) for(var b=0;b<=4;b++){
-    var x=w.left+(w.right-w.left)*a/4, y=w.top+(w.bottom-w.top)*b/4;
-    if(x<w.screen.left||x>w.screen.right||y<w.screen.top||y>w.screen.bottom) continue; // 被裁掉的點等於看不到
-    pts++;
-    var e=document.elementFromPoint(x,y);
-    if(!e || e===vid || e===poster || e.id==='screen') bad++;
-  }
-  return {ok:bad===0, points:pts, bad:bad};
-}
-function drawWm(on){
-  var box=$('#wmbox'), w=wmRect(), s=w.screen;
-  box.style.display = on?'block':'none';
-  box.style.left=(w.left-s.left)+'px'; box.style.top=(w.top-s.top)+'px';
-  box.style.width=(w.right-w.left)+'px'; box.style.height=(w.bottom-w.top)+'px';
-}
-
-/* ── 接線 ── */
-glitchAvatar($('#av'));
-/* 板走到第十三天。第十四天上午只有結局，玩家不經過板也不會開手機 */
 [1,2,3,4,5,6,7,8,9,10,11,12,13].forEach(function(d){
   var b=el('button',null,cnDay(d)); b.type='button'; b.dataset.d=d;
   b.addEventListener('click',function(){ setTime(d,slot); });
@@ -675,55 +165,49 @@ SLOTS.forEach(function(s,i){
   b.addEventListener('click',function(){ setTime(day,i); });
   $('#slots').appendChild(b);
 });
-var FLAG_LABEL = { met_櫃檯:'見過櫃檯', open_studio:'工作室開了' };
-Object.keys(FLAGS).forEach(function(k){
-  var b=el('button',null,FLAG_LABEL[k]); b.type='button'; b.dataset.f=k;
+Object.keys(flags).forEach(function(k){
+  var b=el('button',null,FLAG_MSG[k].label); b.type='button'; b.dataset.f=k;
   b.addEventListener('click',function(){
-    FLAGS[k] = FLAGS[k] ? 0 : day;           // 開的時候記下是第幾天，訊息才排得出先後
-    b.className = FLAGS[k] ? 'on' : '';
-    $('#dot-msg').hidden = !msgs().length;
-    show(tab);
+    flags[k] = flags[k] ? 0 : day;     // 開的時候記下是第幾天，訊息才排得出先後
+    paint(); sendInit();
   });
   $('#flags').appendChild(b);
 });
-Array.prototype.forEach.call(document.querySelectorAll('#tabs button'),function(b){
-  b.addEventListener('click',function(){ show(b.dataset.p); }); });
+[['full','從背包打開'],['banner','收到訊息的橫幅']].forEach(function(m){
+  var b=el('button',null,m[1]); b.type='button'; b.dataset.m=m[0];
+  b.addEventListener('click',function(){ setMode(m[0]); });
+  $('#modes').appendChild(b);
+});
 
-$('#replay').addEventListener('click',function(){ show('live'); });
+/* 卡片在 iframe 裡，量出來的座標要加上 iframe 的位移才是這一頁的座標 */
+function wmRect(){
+  var w=frame.contentWindow.wmRect(), o=frame.getBoundingClientRect();
+  return {left:w.left+o.left, top:w.top+o.top, right:w.right+o.left, bottom:w.bottom+o.top,
+          screen:{left:o.left, top:o.top, right:o.right, bottom:o.bottom}};
+}
+function checkCover(){ return frame.contentWindow.checkCover(); }
+
+$('#replay').addEventListener('click',function(){ frame.contentWindow.show('live'); });
 $('#check').addEventListener('click',function(){
-  if(!onAir() || tab!=='live'){ out.innerHTML='<span class="no">現在不在直播畫面。</span>先切到第二、五或八天的晚上，分頁選直播，再驗一次。'; return; }
-  var r=checkCover();
+  var r;
+  try{ r=checkCover(); }catch(e){ out.innerHTML='<span class="no">現在不在直播畫面。</span>先切到第二、五或八天的晚上，手機下面的分頁選直播，再驗一次。'; return; }
   out.innerHTML = r.ok
     ? '<span class="ok">蓋住了。</span>浮水印範圍取樣 '+r.points+' 點，全部命中底部介面，一點都沒有露出影片。'
     : '<span class="no">沒蓋住。</span>'+r.points+' 點裡有 '+r.bad+' 點直接打到影片，那幾點會看見浮水印。';
 });
 $('#showwm').addEventListener('click',function(){
-  var on=$('#wmbox').style.display!=='block'; drawWm(on);
+  var c=frame.contentDocument.querySelector('#wmbox');
+  var on = c.style.display!=='block';
+  frame.contentWindow.eval('drawWm('+on+')');
   out.textContent = on ? '紅框就是浮水印所在，正常情況下它應該整個埋在聊天室、輸入列與分頁列底下。' : '';
 });
-$('#like').addEventListener('click',function(){
-  var on=this.className.indexOf('liked')<0;
-  this.className='act'+(on?' liked':'');
-  likes+=on?1:-1; $('#likes').textContent=fmt(likes); if(on) fly();
-});
-$('#heart').addEventListener('click',function(){ likes++; $('#likes').textContent=fmt(likes); fly(); fly(); });
-$('#follow').addEventListener('click',function(){
-  var on=this.className!=='on'; this.className=on?'on':''; this.textContent=on?'追蹤中':'追蹤';
-});
-$('#sound').addEventListener('click',function(){
-  vid.muted=!vid.muted;
-  this.querySelector('.ic').textContent = vid.muted?'◁':'◀';
-  this.querySelector('small').textContent = vid.muted?'靜音':'有聲';
-});
-$('#gift').addEventListener('click',function(){ post('你','送出了一個罐頭','sys'); for(var i=0;i<5;i++) later(fly,i*90); });
-$('#share').addEventListener('click',function(){ post('你','把連結複製走了','sys'); });
-$('#say').addEventListener('click',openCompose);
-$('#ccancel').addEventListener('click',function(){ screen.classList.remove('compose-on'); });
-$('#csend').addEventListener('click',sendComment);
-window.addEventListener('resize',function(){ if($('#wmbox').style.display==='block') drawWm(true); });
-if(location.search.indexOf('wm=1')>=0) setTimeout(function(){ drawWm(true); },2600);
 
-setTime(8,2);
-window.checkCover=checkCover; window.wmRect=wmRect; window.setTime=setTime; window.show=show;  // Playwright / console 用
+paint();
+// Playwright / console 用
+window.setTime=setTime; window.setMode=setMode; window.wmRect=wmRect; window.checkCover=checkCover;
+window.setFlag=function(k){ flags[k]=flags[k]?0:day; paint(); sendInit(); };
+window.show=function(p){ frame.contentWindow.show(p); };
+window.getWrites=function(){ return wrote; };
+window.card=function(){ return frame.contentWindow; };
 </script>
 </html>
