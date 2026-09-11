@@ -9,10 +9,12 @@
   預覽殼是 index.html，它扮演 Larch 當宿主，用同一套 postMessage 協定餵變數。
 
   兩種模式，推送層注入 MODE：
-    full    從背包打開：訊息／格莉奇的頁面／直播／電話，四頁。收起來時寫 open_phone=false、phone_day_seen=day。
+    full    從背包打開：訊息／格莉奇的頁面／直播，三頁。收起來時寫 open_phone=false 與三個已讀變數。
+            電話那一格 2026-09-12 拿掉（整合回-glitch-vn.md 五之三）：它沒有任何資料來源，
+            是 phone_ringing 廢掉之後留下來的遺留物。那句「沒有人會打來。」回背包道具的備註欄。
     banner  收到訊息的橫幅：頂端一條，兩秒後把那一則寫進 phone_log，自己 larch:complete。
-  miniGameReadVars：day slot phone_log phone_day_seen
-  miniGameWriteVars：phone_log open_phone phone_day_seen live_comment
+  miniGameReadVars：day slot phone_log phone_day_seen phone_msg_seen phone_live_seen
+  miniGameWriteVars：phone_log open_phone phone_day_seen phone_msg_seen phone_live_seen live_comment
   沒有注入的 @@ 位置都有可以跑的預設值，所以這個檔單獨開也是活的（預覽殼就是這樣用）。
 -->
 <style>
@@ -275,8 +277,7 @@ body.banner #strip{display:flex}
   <nav id="tabs">
     <button type="button" data-p="msg">訊息<span class="dot" id="dot-msg" hidden></span></button>
     <button type="button" data-p="feed">格莉奇<span class="dot" id="dot-feed" hidden></span></button>
-    <button type="button" data-p="live">直播</button>
-    <button type="button" data-p="call">電話</button>
+    <button type="button" data-p="live">直播<span class="dot" id="dot-live" hidden></span></button>
     <button type="button" id="t-close">收起來</button>
   </nav>
 
@@ -303,7 +304,9 @@ var BANNER  = /*@@BANNER@@*/null;                  // {who, text}
 var AVATAR  = /*@@AVATAR@@*/'';
 var VIDEO   = /*@@VIDEO@@*/'';
 var COMPOSE = /*@@COMPOSE@@*/true;                 // 第五天的留言橋段做不做在卡片裡（見整合文件）
-var LIVE_DAYS = /*@@LIVE_DAYS@@*/[2,5,8];
+// 舊卡片那個 LIVE_DAYS 注入點拿掉了。哪幾晚開台不再由卡片推算，
+// 改成讀 phone_log 裡「開始直播了」那幾則——那是遊戲真的寫下來的事（橫幅卡在一開板就寫）。
+// 跟訊息同一個來源，同一個錯誤不在同一支手機裡犯第二次。
 
 /* 影片原生 720×1280，Gemini 星形浮水印量到的位置，取正規化座標再放寬一點當安全框 */
 var WM = {x0:.78, y0:.86, x1:.90, y1:.95};
@@ -417,10 +420,25 @@ function el(t,c,txt){ var e=document.createElement(t); if(c)e.className=c; if(tx
 function fmt(n){ return n.toLocaleString('en-US'); }
 function cnNum(n){ return n<=10 ? CN[n] : '十'+CN[n-10]; }
 function cnDay(n){ return '第'+cnNum(n)+'天'; }
-function onAir(){ return LIVE_DAYS.indexOf(day)>=0 && slot>=2 && NIGHTS[day]; }
+/* 她開過台的日子＝phone_log 裡「開始直播了」那幾則的天。橫幅卡在那幾晚一開板就寫進去，
+   所以玩家打開手機的時候今晚那一則一定已經在了（design/調查篇-直播.md）。 */
+function liveDays(){
+  var a=[];
+  phoneLog().forEach(function(m){
+    if(m.text && m.text.indexOf('開始直播了')>=0){ var d=num(m.day,0); if(d && a.indexOf(d)<0) a.push(d); }
+  });
+  return a.sort(function(x,y){ return x-y; });
+}
+function onAir(){ return liveDays().indexOf(day)>=0 && slot>=2 && !!NIGHTS[day]; }
 function colour(id){ if(!HUE[id]){ HUE[id]='hsl('+(nextHue%360)+' 72% 68%)'; nextHue+=67; } return HUE[id]; }
+/* 三個已讀狀態都要寫回 Larch，不然卡片一重新掛載紅點就又亮了，
+   玩家會學到紅點沒有意義——那比沒有紅點更糟。
+   phone_day_seen 看到第幾天的貼文｜phone_msg_seen 讀過幾則訊息｜phone_live_seen 哪一天看過直播 */
 function freshPosts(){ var seen=num(values.phone_day_seen,0);
   return POSTS.some(function(p){ return p.day<=day && p.day>seen; }); }
+function freshMsgs(){ return phoneLog().length > num(values.phone_msg_seen,0); }
+function freshLive(){ return onAir() && num(values.phone_live_seen,0) !== day; }
+function markSeen(name,v){ if(values[name]!==v){ values[name]=v; setVar(name,v); } }
 
 /* ══ 直播 ══ */
 function post(id,text,kind){
@@ -597,7 +615,7 @@ function drawFeed(box){
     o.appendChild(el('div','note','（帳號已刪除）'));
     box.appendChild(o);
   }
-  setVar('phone_day_seen', day); values.phone_day_seen = day;
+  markSeen('phone_day_seen', day);
   $('#dot-feed').hidden = true;
 }
 function drawOffair(box){
@@ -606,26 +624,19 @@ function drawOffair(box){
   if(AVATAR) b.style.backgroundImage='url("'+AVATAR+'")';
   b.appendChild(el('span',null,'目前沒有直播'));
   w.appendChild(b);
-  var last=LIVE_DAYS.filter(function(x){ return x<day || (x===day && slot<2); }).pop();
+  var last=liveDays().filter(function(x){ return x<day || (x===day && slot<2); }).pop();
   w.appendChild(el('p',null, last?('上次開台：'+cnDay(last)+'。'):'還沒開過台。'));
   w.appendChild(el('p','dim', last&&NIGHTS[last]?('聊天室最後一則：'+NIGHTS[last].last+'。'):'今晚沒開台。'));
   box.appendChild(w);
 }
-function drawCall(box){
-  box.appendChild(el('div','ttl','電話'));
-  var c=el('div','empty');
-  c.appendChild(el('div',null,'通話紀錄是空的。'));
-  c.appendChild(el('div',null,'沒有人會打來。'));
-  box.appendChild(c);
-}
-
 /* ══ 切頁 ══ */
-var PAGES={msg:drawMsg, feed:drawFeed, live:drawOffair, call:drawCall};
+var PAGES={msg:drawMsg, feed:drawFeed, live:drawOffair};
 function show(p){
   tab=p; clear(); screen.classList.remove('compose-on');
   Array.prototype.forEach.call(document.querySelectorAll('#tabs button[data-p]'),function(b){
     b.className = b.dataset.p===p ? 'on' : ''; });
-  if(p==='msg') $('#dot-msg').hidden=true;
+  if(p==='msg'){ markSeen('phone_msg_seen', phoneLog().length); $('#dot-msg').hidden=true; }
+  if(p==='live' && onAir()){ markSeen('phone_live_seen', day); $('#dot-live').hidden=true; }
 
   if(p==='live' && onAir()){
     screen.className=''; page.textContent='';
@@ -638,7 +649,7 @@ function show(p){
   PAGES[p](page);
 }
 function closePhone(){
-  setVar('phone_day_seen', day);
+  markSeen('phone_day_seen', day);
   setVar('open_phone', false);
   finish();
 }
@@ -698,7 +709,8 @@ if(location.search.indexOf('wm=1')>=0) setTimeout(function(){ drawWm(true); },26
 
 function renderFull(){
   $('#dot-feed').hidden = !freshPosts();
-  $('#dot-msg').hidden = !phoneLog().length;
+  $('#dot-msg').hidden  = !freshMsgs();
+  $('#dot-live').hidden = !freshLive();
   if(!booted){ booted=true; show(phoneLog().length ? 'msg' : 'feed'); }
   else show(tab);
 }
@@ -727,7 +739,9 @@ parent.postMessage({type:'larch:ready'}, '*');
 /* 沒有宿主的時候（直接開檔）也要活：兩百毫秒沒收到 init 就自己給一組 */
 setTimeout(function(){
   if(!booted && !document.body.className){
-    values = {day:8, slot:2, phone_log:'[]'};
+    values = {day:8, slot:2, phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0,
+              phone_log: JSON.stringify([2,5,8].map(function(d){
+                return {who:'格莉奇', text:'格莉奇 開始直播了', day:d, slot:2}; }))};
     day=8; slot=2;
     if(MODE==='banner' && BANNER) renderBanner(); else renderFull();
   }

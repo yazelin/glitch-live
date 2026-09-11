@@ -1,4 +1,4 @@
-// 驗收：起一台本機伺服器，把四頁與兩種模式走一遍，證明浮水印被介面蓋住，順便存截圖。
+// 驗收：起一台本機伺服器，把三頁與兩種模式走一遍，證明浮水印被介面蓋住，順便存截圖。
 // 結構：index.html 是預覽殼（扮演 Larch 當宿主），card.html 是卡片本體，跑在 iframe 裡。
 // 浮水印兩層驗法：
 //   命中測試　把浮水印範圍取 5×5 點，elementFromPoint 不能打到影片。
@@ -49,6 +49,19 @@ const card = () => page.frames().find(f => f.url().includes('card.html'));
 const inCard = (fn, arg) => card().evaluate(fn, arg);
 let bad = 0;
 const fail = (why) => { bad++; console.log('FAIL ' + why); };
+
+/* ── 全域名字撞車 ──
+   `var X` 在全域等於 window.X，後面再寫 `window.X = function(){}` 會蓋掉同一個繫結，
+   陣列就變成函式。這個坑在這支檔案上踩過三次（wrote、saved、dropTonight），所以擋起來。 */
+{
+  for (const f of ['index.html', 'card.html']) {
+    const src = await readFile(join(ROOT, f), 'utf8');
+    const vars = new Set([...src.matchAll(/^\s*var\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]));
+    const hit = [...src.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1]).filter(n => vars.has(n));
+    if (hit.length) fail(`${f}｜window.X 跟 var X 撞名，會把變數蓋成函式：${JSON.stringify([...new Set(hit)])}`);
+    else console.log(`PASS ${f}｜掛到 window 的名字沒有跟 var 撞`);
+  }
+}
 
 /* ── 注入點對不對得上 ──
    push.py 是用字串 .replace() 注入的，對不上不會報錯，只會整份原樣送上去。
@@ -138,7 +151,6 @@ const pages = [
   ['feed', 8, 2, ['金魚腦合輯第七集有人剪好了', '@Null_0x99', '兩年前', '考完就刪'], 'page-feed'],
   ['live', 7, 2, ['上次開台：第五天', '聊天室最後一則：今天講到哪了'], 'page-offair'],
   ['live', 13, 2, ['第十三天', '上次開台：第八天', '聊天室最後一則：這集有我'], 'page-offair-d13'],
-  ['call', 8, 2, ['沒有人會打來'], 'page-call'],
 ];
 for (const [tab, d, s, want, shot] of pages) {
   await page.evaluate(([t, d, s]) => { window.setTime(d, s); window.show(t); }, [tab, d, s]);
@@ -149,6 +161,67 @@ for (const [tab, d, s, want, shot] of pages) {
   await page.locator('#phone').screenshot({ path: join(TMP, shot + '.png') });
   if (missing.length || !paused) fail(`${shot}｜缺 ${JSON.stringify(missing)}｜影片有停 ${paused}`);
   else console.log(`PASS ${shot}｜該有的字都在，離開直播時影片有停`);
+}
+
+/* 電話那一格拿掉了（整合回-glitch-vn.md 五之三）：分頁剩三格，那兩行字一個都不能留 */
+{
+  const tabs = await inCard(() => [...document.querySelectorAll('#tabs button')].map(b => b.textContent.replace(/\s/g, '')));
+  const anyCall = await inCard(() => document.body.textContent.includes('沒有人會打來'));
+  if (!(tabs.length === 4 && tabs.slice(0, 3).join('|') === '訊息|格莉奇|直播' && tabs[3] === '收起來' && !anyCall))
+    fail(`電話拿掉｜分頁是 ${JSON.stringify(tabs)}｜還找得到「沒有人會打來」${anyCall}`);
+  else console.log('PASS 電話拿掉｜分頁剩 訊息／格莉奇／直播＋收起來，找不到「沒有人會打來」');
+}
+
+/* 紅點：三個都要會亮、看過會滅，而且要寫回變數（不然重新掛載又亮，玩家會學到紅點沒意義） */
+{
+  await page.evaluate(() => { window.forget(); });
+  await page.waitForTimeout(700);
+  await page.evaluate(() => { window.setTime(8, 2); });
+  await page.waitForTimeout(300);
+  // 手機一打開就落在訊息頁（有訊息的話），所以那一格是「當場讀掉」，開場就不該亮。
+  // 要驗的是它有沒有把 phone_msg_seen 寫回去。
+  const lit = await inCard(() => ({
+    msg: !document.querySelector('#dot-msg').hidden,
+    feed: !document.querySelector('#dot-feed').hidden,
+    live: !document.querySelector('#dot-live').hidden }));
+  const msgRead = await page.evaluate(() => window.getSaved().phone_msg_seen === 3);
+  await page.locator('#phone').screenshot({ path: join(TMP, 'dots.png') });
+  for (const t of ['feed', 'live']) { await page.evaluate(x => window.show(x), t); await page.waitForTimeout(900); }
+  const out2 = await inCard(() => ({
+    msg: !document.querySelector('#dot-msg').hidden,
+    feed: !document.querySelector('#dot-feed').hidden,
+    live: !document.querySelector('#dot-live').hidden }));
+  const persisted = await page.evaluate(() => window.getSaved());
+  // 重新掛載一次：已讀存得住的話，三個紅點都不該回來
+  await page.evaluate(() => { window.setMode('full'); });
+  await page.waitForTimeout(900);
+  await page.evaluate(() => { window.setTime(8, 2); });
+  await page.waitForTimeout(400);
+  const after = await inCard(() => ({
+    msg: !document.querySelector('#dot-msg').hidden,
+    feed: !document.querySelector('#dot-feed').hidden,
+    live: !document.querySelector('#dot-live').hidden }));
+  const allLit = !lit.msg && msgRead && lit.feed && lit.live;
+  const allOut = !out2.msg && !out2.feed && !out2.live;
+  const stayOut = !after.msg && !after.feed && !after.live;
+  const vars = persisted.phone_msg_seen === 3 && persisted.phone_day_seen === 8 && persisted.phone_live_seen === 8;
+  if (!(allLit && allOut && stayOut && vars))
+    fail(`紅點｜清掉已讀後 訊息當場讀掉 ${allLit}(${JSON.stringify(lit)})｜看過都滅 ${allOut}｜重新掛載不再亮 ${stayOut}｜寫回變數 ${vars}(${JSON.stringify(persisted)})`);
+  else console.log('PASS 紅點｜格莉奇與直播會亮、訊息落地就讀掉，看過都滅，重新掛載不再亮，三個已讀變數都寫回去了');
+}
+
+/* 開台的日子讀 phone_log，不是照天數推：把今晚那一則拿掉，直播頁就該變離線 */
+{
+  await page.evaluate(() => { window.setTime(8, 2); window.show('live'); });
+  await page.waitForTimeout(400);
+  const onAirBefore = await inCard(() => !document.querySelector('#screen').classList.contains('page-on'));
+  await page.evaluate(() => { window.dropTonight(true); window.setTime(8, 2); window.show('live'); });
+  await page.waitForTimeout(400);
+  const offAfter = await inCard(() => document.querySelector('#page').textContent.includes('上次開台：第五天'));
+  await page.evaluate(() => { window.dropTonight(false); });
+  if (!(onAirBefore && offAfter))
+    fail(`開台讀 phone_log｜第八天晚上原本在直播 ${onAirBefore}｜抽掉今晚那一則之後變離線且寫「上次開台：第五天」 ${offAfter}`);
+  else console.log('PASS 開台讀 phone_log｜抽掉今晚那一則，直播頁就變離線、上次開台退回第五天');
 }
 
 /* 訊息＝phone_log。則數對 design/調查篇-通關路線.txt 逐日的 [手機] 快照。 */
@@ -174,7 +247,7 @@ if (d1 !== 2) fail(`第一天的貼文數應該是 2，量到 ${d1}`);
 else console.log('PASS 貼文照天數出現｜第一天兩則');
 
 /* 收起來：要寫 phone_day_seen 與 open_phone=false，然後 larch:complete */
-await page.evaluate(() => { window.setTime(8, 2); window.show('call'); });
+await page.evaluate(() => { window.setTime(8, 2); window.show('feed'); });
 await page.waitForTimeout(300);
 await page.frameLocator('#frame').locator('#t-close').click();
 await page.waitForTimeout(300);

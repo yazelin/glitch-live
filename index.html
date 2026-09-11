@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>格莉奇・她的手機（畫面原型）</title>
-<meta name="description" content="《格莉奇與黑洞先生・調查篇》背包裡那支手機，四頁完整原型。先在這裡驗畫面，確認之後才搬進 Larch。">
+<meta name="description" content="《格莉奇與黑洞先生・調查篇》背包裡那支手機，三頁完整原型。先在這裡驗畫面，確認之後才搬進 Larch。">
 <!--
   這是**預覽殼**，不進遊戲。卡片本體是 card.html，整合時整份複製成 glitch-vn/larch/cards/phone.html。
   這一頁扮演 Larch 當宿主：用同一套 postMessage 協定（larch:ready / larch:init / larch:set / larch:complete）
@@ -77,6 +77,7 @@ body{background:
   <div class="grp" id="modes"></div>
   <h2>驗收</h2>
   <div class="grp">
+    <button type="button" id="forget">忘掉已讀</button>
     <button type="button" id="replay">重播載入</button>
     <button type="button" id="check">驗浮水印</button>
     <button type="button" id="showwm">顯示浮水印框</button>
@@ -94,6 +95,10 @@ var FLAG_MSG = {
   open_studio:{label:'工作室開了', who:'斑比',     text:'有空來工作室。稿子帶著。'}
 };
 var day=8, slot=2, mode='full', flags={met_櫃檯:0, open_studio:0}, wrote=[];
+/* 卡片寫回來的變數留在這裡，下一次 larch:init 再送回去。
+   Larch 會把變數存進存檔，預覽殼要模擬那件事，否則驗不出紅點看過會不會真的消失。 */
+var saved = {phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0};
+var skipTonight = false;   // 驗收用：抽掉今晚那一則開台通知，證明卡片是讀 phone_log 不是照天數推
 var $=function(s){ return document.querySelector(s); };
 var frame=$('#frame'), out=$('#out');
 function el(t,c,txt){ var e=document.createElement(t); if(c)e.className=c; if(txt!=null)e.textContent=txt; return e; }
@@ -105,6 +110,7 @@ function cnDay(n){ return '第'+(n<=10?CN[n]:'十'+CN[n-10])+'天'; }
 function phoneLog(){
   var a=[];
   LIVE_DAYS.forEach(function(d){
+    if(skipTonight && d===day) return;
     if(d<day || (d===day && slot>=2)) a.push({who:'格莉奇', text:'格莉奇 開始直播了', day:d, slot:2});
   });
   Object.keys(flags).forEach(function(k){
@@ -113,7 +119,7 @@ function phoneLog(){
   return a.sort(function(x,y){ return x.day-y.day || x.slot-y.slot; });
 }
 function variables(){
-  return {day:day, slot:slot, phone_log:JSON.stringify(phoneLog()), phone_day_seen:0};
+  return Object.assign({}, saved, {day:day, slot:slot, phone_log:JSON.stringify(phoneLog())});
 }
 function sendInit(){
   frame.contentWindow.postMessage({type:'larch:init', variables:variables()}, '*');
@@ -139,6 +145,7 @@ window.addEventListener('message', function(e){
   var d=e.data; if(!d) return;
   if(d.type==='larch:ready'){ sendInit(); return; }
   if(d.type==='larch:set'){
+    if(d.name in saved) saved[d.name] = d.value;    // 存起來，下次 init 送回去
     var v = typeof d.value==='string' && d.value.length>46 ? d.value.slice(0,46)+'⋯' : String(d.value);
     wrote.push({name:d.name, value:v}); drawWrote(); return;
   }
@@ -187,6 +194,11 @@ function wmRect(){
 }
 function checkCover(){ return frame.contentWindow.checkCover(); }
 
+$('#forget').addEventListener('click',function(){
+  saved={phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0};
+  out.textContent='已讀清掉了。重新掛載一次，三個紅點都該回來。';
+  reload();
+});
 $('#replay').addEventListener('click',function(){ frame.contentWindow.show('live'); });
 $('#check').addEventListener('click',function(){
   var r;
@@ -206,6 +218,9 @@ paint();
 // Playwright / console 用
 window.setTime=setTime; window.setMode=setMode; window.wmRect=wmRect; window.checkCover=checkCover;
 window.setFlag=function(k){ flags[k]=flags[k]?0:day; paint(); sendInit(); };
+window.forget=function(){ saved={phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0}; reload(); };
+window.getSaved=function(){ return saved; };
+window.dropTonight=function(v){ skipTonight=!!v; sendInit(); };
 window.show=function(p){ frame.contentWindow.show(p); };
 window.getWrites=function(){ return wrote; };
 window.card=function(){ return frame.contentWindow; };
