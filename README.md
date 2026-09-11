@@ -39,6 +39,7 @@
 右邊主控台的「驗浮水印」按鈕跑的是同一支命中測試。
 
 ```
+npm i                      # 只為了 playwright
 node verify.mjs            # 跑驗收，截圖存到 shots/
 node verify.mjs --headed   # 開視窗看
 ```
