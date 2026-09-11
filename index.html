@@ -149,6 +149,7 @@ body{background:
 #status{display:flex;justify-content:space-between;align-items:center;padding:13px 16px 8px;
   font-size:11px;color:var(--faint);letter-spacing:.05em;position:sticky;top:0;background:var(--panel);z-index:2}
 #status b{color:var(--muted);font-weight:600}
+#status .sb{display:block;color:var(--faint)}   /* 訊號、Wi-Fi、電池。原本那三個 ▮ 看不出是訊號還是電量 */
 .ttl{margin:4px 16px 10px;font-size:17px;font-weight:700;letter-spacing:.02em}
 .empty{margin:52px 22px;color:var(--faint);font-size:13px;line-height:2.1;text-align:center}
 
@@ -515,7 +516,22 @@ function sendComment(){
 function statusBar(){
   var s=el('div'); s.id='status';
   s.appendChild(el('b',null,cnDay(day)+'・'+SLOTS[slot]));
-  s.appendChild(el('span',null,'▮▮▮'));
+  var g=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  g.setAttribute('class','sb'); g.setAttribute('viewBox','0 0 54 12');
+  g.setAttribute('width','54'); g.setAttribute('height','12'); g.setAttribute('aria-hidden','true');
+  g.innerHTML =
+    '<g fill="currentColor">'
+    + '<rect x="0" y="8.4" width="2.4" height="3.6" rx=".7"/>'
+    + '<rect x="3.6" y="6.4" width="2.4" height="5.6" rx=".7"/>'
+    + '<rect x="7.2" y="4.4" width="2.4" height="7.6" rx=".7"/>'
+    + '<rect x="10.8" y="2.4" width="2.4" height="9.6" rx=".7" opacity=".32"/></g>'
+    + '<g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
+    + '<path d="M18.2 6.3a6 6 0 0 1 7.6 0"/><path d="M20.2 8.5a3.2 3.2 0 0 1 3.6 0"/></g>'
+    + '<circle cx="22" cy="11" r=".95" fill="currentColor"/>'
+    + '<rect x="31" y="2.6" width="19" height="8.8" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".5"/>'
+    + '<rect x="50.8" y="5.4" width="1.6" height="3.2" rx=".8" fill="currentColor" opacity=".5"/>'
+    + '<rect x="32.5" y="4.2" width="9.6" height="5.6" rx="1.4" fill="currentColor"/>';
+  s.appendChild(g);
   return s;
 }
 function glitchAvatar(e){
