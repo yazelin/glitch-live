@@ -10,17 +10,17 @@
 **逐字稿的驗收閘**（重產基準與整合後的實玩都用這一支）：
 
 ```bash
-node ~/glitch-live/dev/check-transcript.mjs <transcript> [baseline]   # 五點，不過 exit 1
-node ~/glitch-live/dev/check-transcript.mjs --self-test               # 負控制：證明弄壞會紅
+node ~/glitch-live/dev/check-transcript.mjs <transcript>   # 四點，不過 exit 1
+node ~/glitch-live/dev/check-transcript.mjs --self-test     # 負控制：證明弄壞會紅
 ```
 
-**A 抓不到手機壞掉。** A 是「路線沒變」，它的比法是把 `[手機]` 那幾行濾掉之後才比，
-所以整合後 `autoplay.mjs` 找不到手機 frame、每天印「[手機] 打不開」而 exit 0 的那種壞法，
-**A 永遠是綠的**。B、C、D 抓得到但靠「那一行不見了」，缺席容易被解釋成「那天路線沒開手機」。
-**只有 E 把缺席變成可數的紅**（`[手機] 訊息` 要 11 行、打不開／出錯要 0 行）。
+**這一支只管手機。路線歸 glitch-vn 的 `tools/route_diff.py`。** 原本那項 A「路線逐字比」
+拿掉了：`board.html:262` 用未定種子的 `Math.random()` 決定訪客，逐格重現做不到，
+而且 A 的比法把 `[手機]` 那幾行濾掉、本來就看不到手機壞掉。
 
-所以：**不要拿 A 當手機沒問題的證據**，要看 E。
-
+**不要拿 B、C 當手機有沒有跑到的證據，要看 E。** B、C 只驗逐字稿裡真的有手機那一行的天，
+為的是容忍訪客隨機造成的浮動；**覆蓋率歸 E 管**。負控制裡「半壞」那個案例
+（手機只在三天開得成）B、C、D 全綠、只有 E 紅——那種壞法長得跟路線浮動一模一樣。
 
 **整合方案在 `整合回-glitch-vn.md`，這裡只留還沒做完的。**
 
