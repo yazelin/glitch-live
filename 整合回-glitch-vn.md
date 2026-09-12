@@ -39,6 +39,18 @@ glitch-vn 在發佈流程的最後一哩：正篇剛發 release 4、市集簡介
 反過來（對方改卡片、這邊審）會讓對方要重新推導卡片內部的契約——注入形狀、三個已讀變數、
 `liveDays()` 讀 `phone_log`——那些脈絡在這邊。
 
+### 要拉的那一版：`phone-v1`（2026-09-12 釘住）
+
+```
+https://raw.githubusercontent.com/yazelin/glitch-live/phone-v1/card.html
+```
+
+commit `b50f6b94d4899565f571346dc5faf136e0a6c8a9`。打 tag 時 `verify.mjs` 深淺各 22 項兩輪全過。
+tag 上的說明寫了這一版是什麼、注入點怎麼動、讀寫哪些變數、`@` 那條契約。
+
+**整合過程中卡片如果要改，另外打 `phone-v2`，不要動 `phone-v1`。** 釘住的意義就是
+整合那一輪有個固定的東西可以對，不會邊整合邊漂。
+
 ## 三、要換哪個檔
 
 | 這裡 | 搬到那裡 | 怎麼搬 |

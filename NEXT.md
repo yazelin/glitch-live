@@ -1,5 +1,11 @@
 # glitch-live 待辦
 
+**卡片已釘住：`phone-v1`**
+`https://raw.githubusercontent.com/yazelin/glitch-live/phone-v1/card.html`
+（commit `b50f6b9`，打 tag 時 verify 深淺各 22 項兩輪全過）
+整合過程要改卡片就打 `phone-v2`，不要動 `phone-v1`。
+
+
 **整合方案在 `整合回-glitch-vn.md`，這裡只留還沒做完的。**
 
 1. 畫面請 yazelin 看過：<https://yazelin.github.io/glitch-live/>。
