@@ -4,6 +4,16 @@
     python3 tools/storylint.py
     python3 tools/storylint.py --self-test          # 負控制：拿真的 payload 改，證明會紅
 
+**結束碼是三態，因為 CI 只看結束碼。**
+
+    0   全部驗過而且全綠
+    2   沒有紅的，可是有項目沒驗到（SKIP）。**這不是通過**，是「沒驗完」
+    1   有紅的
+
+報告裡寫「這不等於這一層過了」卻回 0 的話，接進自動流程就會被當成通過——
+工具嘴上說不通過、身體說通過，那正是這支工具要防的東西換到結束碼這一層。
+（`--self-test` 是例外，它只回 0／1：負控制要嘛有效要嘛無效，沒有第三態。）
+
 **為什麼是靜態的。** `tools/autoplay.mjs` 的逐字稿只印六種標記
 （`[卡住] [手機] [第一頁] [背包] [選項] [錄音帶]`），**背景、BGM、語音一個都沒記**，
 所以這一層不可能從逐字稿驗——那份資料裡根本沒有那些欄位。改走板子的靜態資料，
@@ -53,14 +63,16 @@ class Report:
         done = len(self.rows) - len(skipped) - bad
         print()
         if bad:
-            print(f"  {bad} 項不過。")
-        elif skipped:
-            # 有 SKIP 的時候**不准說「全部通過」**。那句話會讓沒驗到的被當成驗過了。
+            print(f"  {bad} 項不過。（結束碼 1）")
+            return 1
+        if skipped:
+            # 有 SKIP 的時候**不准說「全部通過」，也不准回 0**。
+            # 那句話會讓沒驗到的被當成驗過了，而那個 0 會讓 CI 也這樣以為。
             print(f"  沒有紅的，但 {len(skipped)} 項沒驗到：{'、'.join(skipped)}")
-            print(f"  真的驗過的只有 {done} 項。**這不等於這一層過了。**")
-        else:
-            print("  全部通過。")
-        return bad
+            print(f"  真的驗過的只有 {done} 項。**這不等於這一層過了。**（結束碼 2）")
+            return 2
+        print("  全部通過。（結束碼 0）")
+        return 0
 
 
 def nodes_of(payload):
@@ -240,6 +252,20 @@ def self_test(payload, route_steps, spoken):
     def add_bgm(p):
         first_scene(p)["data"]["bgm"] = ""
 
+    def all_present(p):
+        """把 bgm 與 voiceUrl 補齊，走通「全部驗過而且全綠」那條路。
+        那條路今天在真資料上走不到（S2、S3 必 SKIP），不走一次就等於沒測過。"""
+        for n in nodes_of(p):
+            d = n.get("data") or {}
+            if "bgm" in d or d.get("type") == "scene":
+                d["bgm"] = "https://example.invalid/bgm.mp3"
+            for l in (d.get("dialogueLines") or []):
+                l["voiceUrl"] = "https://example.invalid/v.mp3"
+            if d.get("dialogueLines") or d.get("text"):
+                d["voiceMode"] = "shared"
+                if not d.get("dialogueLines") and d.get("text"):
+                    d["dialogueLines"] = [{"text": d["text"], "voiceUrl": "https://example.invalid/v.mp3"}]
+
     cases = [
         ("一、場景卡的背景清成空字串", "S1", mut(clear_bg), route_steps),
         ("二、背景改成本機路徑（推上去會是破圖）", "S1", mut(local_bg), route_steps),
@@ -252,9 +278,8 @@ def self_test(payload, route_steps, spoken):
     print("好的（真的 payload，沒有動過）：")
     good = run(payload, route_steps, spoken, None)
     good.show()
-    good_bad = [r[1] for r in good.rows if r[0] == FAIL]
-
-    all_fine = not good_bad
+    # 負控制只問「好的有沒有紅」，SKIP 在這裡是預期狀態，不算失敗
+    all_fine = not [r for r in good.rows if r[0] == FAIL]
     for name, want, p, steps in cases:
         print(f"\n{name}　（應該由 {want} 抓到）")
         rep = run(p, steps, spoken, None)
@@ -266,9 +291,21 @@ def self_test(payload, route_steps, spoken):
         print(f"  → 變紅的是：{'、'.join(red) or '沒有'}　"
               f"{'✔ ' + want + ' 抓到了' if hit else '✘ ' + want + ' 沒抓到'}")
 
+    # 最後一案不是壞掉，是走通「全部驗過而且全綠、結束碼 0」那條路。
+    print("\n六、補齊 bgm 與 voiceUrl　（應該全綠，結束碼 0）")
+    full = mut(all_present)
+    rep = run(full, route_steps, spoken, {"languages": [{"code": "zh-Hant", "voiceMode": "shared"}]})
+    code = rep.show()
+    ok0 = code == 0
+    if not ok0:
+        all_fine = False
+    print(f"  → 結束碼 {code}　{'✔ 全綠那條路走得通' if ok0 else '✘ 補齊了還是沒全綠'}")
+
     print("\n這份負控制跑在**真的 payload.json 上**，不是合成的。")
     print("案例五不是壞掉，是證明 SKIP 不是永久失明：bgm 一出現，S2 就從 SKIP 轉成實驗並抓到空字串。")
-    print("\n" + ("PASS 負控制有效：好的沒有紅，五種情況各自被該抓的那一項抓到。"
+    print("案例六不是壞掉，是走通「全部驗過而且全綠、結束碼 0」那條路——")
+    print("那條路今天在真資料上走不到（S2、S3 必 SKIP），不走一次就等於沒測過。")
+    print("\n" + ("PASS 負控制有效：好的沒有紅，五種壞法各自被該抓的那一項抓到，全綠那條路也走得通。"
                   if all_fine else
                   "FAIL 負控制無效——先修檢查再談驗收。"))
     return 0 if all_fine else 1
@@ -294,9 +331,8 @@ def main():
         project = d.get("project", d)
 
     if a.self_test:
-        return self_test(payload, steps, spoken)
-    rep = run(payload, steps, spoken, project)
-    return 1 if rep.show() else 0
+        return self_test(payload, steps, spoken)   # 負控制只有 0／1
+    return run(payload, steps, spoken, project).show()
 
 
 if __name__ == "__main__":
