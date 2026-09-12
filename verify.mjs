@@ -50,6 +50,26 @@ const inCard = (fn, arg) => card().evaluate(fn, arg);
 let bad = 0;
 const fail = (why) => { bad++; console.log('FAIL ' + why); };
 
+/* ── 供給端：線上那支 mp4 還在不在 ──
+   2026-09-12 拍板影片走外部網址，所以 glitch-vn 的正式專案直接指這裡。
+   這一項擋的是「檔案被改名或搬走」。擋不到的是「整個 repo 被刪掉」——
+   那種情況這支腳本也一起沒了，只有消費端（glitch-vn）的檢查救得到，見整合文件五之一。
+   離線就跳過，不要讓沒網路的時候紅一片。 */
+{
+  const URL_ = 'https://yazelin.github.io/glitch-live/assets/live-loop.mp4';
+  let code = null, netErr = null;
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 8000);
+    const r = await fetch(URL_, { method: 'HEAD', signal: ac.signal });
+    clearTimeout(t);
+    code = r.status;
+  } catch (e) { netErr = e.name; }
+  if (netErr) console.log(`SKIP 線上的 mp4｜連不出去（${netErr}），離線就跳過`);
+  else if (code !== 200) fail(`線上的 mp4｜${URL_} 回 ${code}，正式專案指的就是這個網址，它壞了遊戲裡會是一片黑`);
+  else console.log('PASS 線上的 mp4｜正式專案指的那個網址回 200');
+}
+
 /* ── 全域名字撞車 ──
    `var X` 在全域等於 window.X，後面再寫 `window.X = function(){}` 會蓋掉同一個繫結，
    陣列就變成函式。這個坑在這支檔案上踩過三次（wrote、saved、dropTonight），所以擋起來。 */

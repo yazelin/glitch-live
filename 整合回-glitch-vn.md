@@ -158,11 +158,66 @@ Larch 的 miniGame 與插件卡跑在 `srcdoc` + `sandbox="allow-scripts"` 的 i
 **這兩件要實際傳一次才知道，而那是對 Larch 的寫入動作。** 要驗的話應該在沙盒專案
 （`project-5aae449c…`）傳，不要拿 glitch-vn 那個專案試。**動手前要先問過。**
 
-#### 建議
+#### 已拍板：走外部網址（2026-09-12）
 
-**先傳一次沙盒試 `video/mp4`，能過就走素材庫。** 理由是資產跟作品放在一起比較好管，
-而且 R2 網址不會因為 repo 改名而斷。過不了就走外部網址——那條已經證明可行，
-只要在整合文件裡註明「這支 mp4 是 glitch-live 在供，那個 repo 不能改名或刪掉」。
+卡片的 `VIDEO` 注入成這個絕對網址：
+
+```
+https://yazelin.github.io/glitch-live/assets/live-loop.mp4
+```
+
+上傳素材庫那條留到整合那天再驗——**現在傳沙盒等於提前做整合日才要做的事，而整合被押後
+（等 glitch-vn 的發佈線落地），方案還可能變，提前驗可能白做。**
+
+#### 這條決定帶來一個跨 repo 依賴，要有人擋
+
+glitch-vn 的正式專案從此指著 glitch-live 的一個檔案。**那個 repo 改名、轉私有、刪掉，
+或是那個檔案改名搬走，遊戲裡的直播畫面就會壞掉，而且不會報錯——玩家看到的是一片黑。**
+
+寫在文件裡不夠：三個月後不會有人讀文件，會碰到它的是那天想整理 repo 的人。
+所以做了三層，一層比一層被動：
+
+| 層 | 做了沒 | 誰會看到 | 擋得住什麼 |
+|---|---|---|---|
+| glitch-live 的 `README.md` 最上面一段警告 | **做了** | 打開 repo 首頁的人 | 要整理 repo 的人第一眼 |
+| `assets/README.md` | **做了** | 在 GitHub 上點開 `assets/` 資料夾的人（會直接渲染在檔案清單底下） | 要動那個檔案的人 |
+| glitch-live 的 `verify.mjs` 加一項：線上那個網址回不回 200 | **做了** | 跑驗收的人 | 檔案被改名或搬走 |
+
+**三層都擋不到「整個 repo 被刪掉」**，因為那時候上面三樣一起沒了。
+那一種只有消費端救得到，所以下面這一條是**整合日的必做步驟，不是選配**。
+
+#### 整合日必做：在 glitch-vn 那邊加一條消費端檢查
+
+加進 `glitch-vn/tools/card_test.mjs`（或任何一支每次都會跑的驗收腳本）：
+
+```js
+// 手機直播頁的影片在別的 repo 上（glitch-live）。那邊被刪掉或改名，
+// 這裡的遊戲就是一片黑而且不報錯，所以在這裡叫。
+{
+  const url = 'https://yazelin.github.io/glitch-live/assets/live-loop.mp4';
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 8000);
+    const r = await fetch(url, { method: 'HEAD', signal: ac.signal });
+    clearTimeout(t);
+    ok(`手機直播的影片還在（${url}）`, r.status === 200, `回 ${r.status}`);
+  } catch (e) {
+    console.log(`  （連不出去，跳過影片檢查：${e.name}）`);
+  }
+}
+```
+
+**這一條寫在這裡是有原因的。** 今天看到過同一類的東西：`glitch-vn/larch/stickers/`
+是已經上線的素材，卻只存在硬碟上，沒有任何機制會提醒。**靠文件記住的東西，時間久了都會失效。**
+
+順帶一提為什麼不用排程的 GitHub Actions 去 ping：**排程 workflow 在 repo 六十天沒有提交之後
+會被 GitHub 自動停用**，那正好是同一個毛病再上一層——一個會自己安靜死掉的守衛，
+比沒有守衛更糟，因為你以為有人在看。
+
+#### 哪天改走 Larch 素材庫
+
+這條依賴就沒了。要拿掉的東西：glitch-live 的 README 警告、`assets/README.md` 那一段、
+兩邊 verify 的網址檢查。
 
 ---
 
