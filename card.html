@@ -188,7 +188,14 @@ body{background:#07080c}
 #reply{display:flex;gap:8px;padding:10px 12px 14px;margin-top:auto;border-top:1px solid var(--line)}
 #reply span{flex:1;border:1px solid var(--line);border-radius:18px;padding:8px 13px;font-size:12.5px;
   color:var(--ghost);background:var(--sunk)}
-#reply i{width:34px;border-radius:50%;background:var(--av)}
+/* 送出鈕。移植自 glitch-vn c886435：這顆從第一版就是空的 <i>，只有一個灰圓底，
+   裡面沒有字也沒有圖形，實玩時會被當成「icon 不見了」。
+   （c886435 的另一半 #reply[hidden] 不用移植：這支卡片的 #reply 只在 drawMsg 裡建出來，
+     別的頁根本沒有那個元素，不是靠 hidden 藏的。） */
+#reply i{flex:none;width:34px;height:34px;align-self:center;border-radius:50%;
+  background:var(--line);position:relative}
+#reply i::after{content:"↑";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font:normal 600 17px/1 system-ui,"Noto Sans TC",sans-serif;font-style:normal;color:var(--faint)}
 
 /* 格莉奇的頁面 */
 .prof{display:flex;gap:12px;align-items:center;padding:6px 16px 12px}

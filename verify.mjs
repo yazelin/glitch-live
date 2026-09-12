@@ -370,6 +370,22 @@ for (const [tab, d, s, want, shotName] of pages) {
   else console.log('PASS 開台讀 phone_log｜抽掉今晚那一則，直播頁就變離線、上次開台退回第五天');
 }
 
+/* 送出鈕畫得出來（移植自 glitch-vn c886435，那顆原本是空的 <i>，實玩被當成 icon 不見了） */
+{
+  await page.evaluate(() => { window.setTime(8, 2); window.show('msg'); });
+  await page.waitForTimeout(300);
+  const arrow = await inCard(() => {
+    const i = document.querySelector('#reply i');
+    if (!i) return null;
+    const a = getComputedStyle(i, '::after');
+    const b = i.getBoundingClientRect();
+    return { content: a.content, w: Math.round(b.width), h: Math.round(b.height) };
+  });
+  const ok = arrow && arrow.content.includes('↑') && arrow.w > 20 && arrow.h > 20;
+  if (!ok) fail(`送出鈕｜#reply i 的 ::after 是 ${JSON.stringify(arrow)}，應該畫得出箭頭`);
+  else console.log(`PASS 送出鈕｜#reply i 畫得出箭頭（${arrow.content}，${arrow.w}×${arrow.h}）`);
+}
+
 /* 訊息＝phone_log。則數對 design/調查篇-通關路線.txt 逐日的 [手機] 快照。 */
 await page.evaluate(() => { window.setTime(8, 2); window.show('msg'); });
 await page.waitForTimeout(250);

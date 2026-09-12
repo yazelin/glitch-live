@@ -74,35 +74,48 @@ if (process.argv.includes('--self-test')) {
   ).join('\n') + '\n=== 統計：出門 48 次，到過 {…}，選過 37 格，1409 秒';
   const good = mk(false), bad = mk(true);
 
-  // 半壞：手機只在三天開得成（例如選擇器改壞之後偶爾還撈得到）。這種最像「路線浮動」。
-  const half = DAYS.map((d, i) =>
-    `=== 板 第 ${d} 天 | 便條：… | 可去：…\n` +
-    (i < 3 ? `  [手機] 訊息 ${MSG[d]} 則 []；貼文 ${POST[d]} 則：立牌站得有點歪，剛剛｜這禮拜的排程跟上禮｜明天也會開台。你們來｜下個月的新周邊做好｜…`
-           : '  [手機] 打不開')
-  ).join('\n') + '\n=== 統計：出門 48 次，到過 {…}，選過 37 格，1409 秒';
+  const line = (d, msg, post) =>
+    `  [手機] 訊息 ${msg} 則 []；貼文 ${post} 則：立牌站得有點歪，剛剛｜這禮拜的排程跟上禮｜明天也會開台。你們來｜下個月的新周邊做好｜…`;
+  const build = (fn) => DAYS.map((d, i) => `=== 板 第 ${d} 天 | 便條：… | 可去：…\n` + fn(d, i)).join('\n')
+    + '\n=== 統計：出門 48 次，到過 {…}，選過 37 格，1409 秒';
+
+  // 三種壞法。每一種都要紅，而且要是「該抓的那一點」抓到的。
+  const cases = [
+    ['一、手機整個打不開', 'E',
+     build(() => '  [手機] 打不開')],
+    ['二、第五天少一則訊息', 'B',
+     build((d) => line(d, d === 5 ? MSG[d] - 1 : MSG[d], POST[d]))],
+    ['三、第九天少一則貼文', 'C',
+     build((d) => line(d, MSG[d], d === 9 ? POST[d] - 1 : POST[d]))],
+    // 這一種是容忍度的邊界：整天缺席（路線擺動）不該紅 B/C，但覆蓋率掉下來要紅 E
+    ['四、半壞：只有三天開得成', 'E',
+     build((d, i) => i < 3 ? line(d, MSG[d], POST[d]) : '  [手機] 打不開')],
+  ];
 
   console.log('好的逐字稿（手機正常）：');
   const g = run(good); show(g);
-  console.log('\n全壞（手機每天都「打不開」，autoplay 仍然 exit 0）：');
-  const b = run(bad); show(b);
-  console.log('\n半壞（只有三天開得成，最像「路線浮動」的那種）：');
-  const h = run(half); show(h);
+  const gOk = g.every(x => x[1] !== false);
 
   const red = (rows) => rows.filter(x => x[1] === false).map(x => x[0][0]);
-  const gOk = g.every(x => x[1] !== false);
-  const eRed = (rows) => rows.some(x => x[0].startsWith('E') && x[1] === false);
+  let allFine = gOk;
+  for (const [name, want, text] of cases) {
+    console.log(`\n${name}　（應該由 ${want} 抓到）`);
+    const rows = run(text); show(rows);
+    const got = red(rows);
+    const hit = got.includes(want);
+    if (!hit) allFine = false;
+    console.log(`  → 變紅的是：${got.join('、') || '沒有'}　${hit ? '✔ ' + want + ' 抓到了' : '✘ ' + want + ' 沒抓到，容忍度開太大'}`);
+  }
 
-  console.log(`\n好的：全綠 ${gOk}｜全壞：${red(b).join('、') || '沒有變紅'}｜半壞：${red(h).join('、') || '沒有變紅'}`);
-  console.log('\nB 與 C 在壞掉的那兩份是綠的，那是分工不是漏洞：');
-  console.log('  它們只驗逐字稿裡真的有手機那一行的天，為的是容忍訪客隨機（board.html:262）造成的浮動。');
-  console.log('  **覆蓋率歸 E 管**——開得成的天數低於下限、或出現任何一行「打不開／出錯」就紅。');
-  console.log('  所以：不要拿 B、C 當手機有沒有跑到的證據，要看 E。');
+  console.log('\n容忍度的判準（B、C 用的）：');
+  console.log('  只驗逐字稿裡**真的有 [手機] 那一行**的天。整天缺席＝跳過（那是訪客隨機造成的路線擺動），');
+  console.log('  有行但數字不對＝紅。**沒有「差一以內都算過」這種寫法**，所以吸收不到「少一則」。');
+  console.log('  整天缺席由 E 兜底：行數低於下限、或出現任何一行「打不開／出錯」就紅。');
 
-  const fine = gOk && eRed(b) && eRed(h);
-  console.log('\n' + (fine
-    ? 'PASS 負控制有效：全壞與半壞都被 E 抓到，好的全綠。'
-    : 'FAIL 負控制無效——弄壞了 E 還是綠，先修驗收再談整合。'));
-  process.exit(fine ? 0 : 1);
+  console.log('\n' + (allFine
+    ? 'PASS 負控制有效：好的全綠，三種壞法各自被該抓的那一點抓到。'
+    : 'FAIL 負控制無效——有壞法沒被該抓的那一點抓到，先修驗收再談整合。'));
+  process.exit(allFine ? 0 : 1);
 }
 
 /* ── 正常使用 ── */
