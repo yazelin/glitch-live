@@ -46,6 +46,10 @@ node ~/glitch-live/dev/check-transcript.mjs --self-test <真的逐字稿>   # �
 
 容忍度的判準講死了：整天缺席＝跳過，有行但數字不對＝紅。**沒有「差一以內都算過」這種寫法。**
 
+**第五道關的規格出了**：`規格-劇情模式順順通關.md`（等你轉給 w1D，它手上有配音選角在處理）。
+三層分開驗；**第三層現在驗不到**，`autoplay.mjs` 的逐字稿只記六種標記，
+背景／BGM／語音一個都沒有，要新做一支靜態的 `tools/storylint.py`。
+
 **整合方案在 `整合回-glitch-vn.md`，這裡只留還沒做完的。**
 
 1. 畫面請 yazelin 看過：<https://yazelin.github.io/glitch-live/>。
