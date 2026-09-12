@@ -136,6 +136,19 @@ indexedDB／cookie 四個全部丟 `SecurityError`，實測在 `dev/probe-sandbo
 瀏覽器裡也能自己看：網址加 `?wm=1` 會把浮水印的範圍畫成紅框，
 右邊主控台的「驗浮水印」按鈕跑的是同一支命中測試。
 
+### 先裝相依
+
+驗收工具（`verify.mjs`、`dev/*.mjs`）要 **playwright**：
+
+```bash
+npm i                        # 裝 playwright 套件
+npx playwright install chromium   # 第一次在這台機器上跑才需要（會下載瀏覽器）
+```
+
+**之前這件事沒有人需要寫**，因為 repo 裡有一個 `node_modules` symlink 指向隔壁
+`glitch-2d` 借用套件。那個 symlink 在 2026-09-12 被刪掉了（指向本機絕對路徑的
+symlink 進版控，在任何別的機器上都是壞的），所以從這裡開始要自己裝。
+
 ```
 npm i                        # 只為了 playwright
 node verify.mjs              # 深淺各跑一遍，截圖存到 shots/

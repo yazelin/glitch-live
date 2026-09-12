@@ -1,3 +1,8 @@
-node_modules/
+# 不要寫成 node_modules/（帶斜線）。帶斜線只 match 目錄，**match 不到 symlink**，
+# 而這個 repo 曾經用一個指向 /home/ct/glitch-2d/node_modules 的 symlink 借相依套件。
+# 結果是 git add -A 每次都把那個 symlink 收進版控，rm 掉又變成一次刪除——
+# 它在八個 commit 裡進出了四次，最後一次被夾在一支講文件的 commit 裡刪掉，
+# 工具就在沒有人注意的情況下跑不動了。
+node_modules
 shots/
 !shots/demo-*.webp
