@@ -66,6 +66,10 @@
 `verify.mjs` 兩套各跑一遍（`node verify.mjs` 預設就是兩遍），截圖分開存：
 淺色那一輪的檔名前面多一個 `light-`。
 
+| 深 | 淺 |
+|---|---|
+| ![深色](shots/demo-dark.webp) | ![淺色](shots/demo-light.webp) |
+
 ## 紅點
 
 分頁列唯一的新鮮度訊號。兩條規矩：
