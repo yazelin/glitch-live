@@ -5,7 +5,10 @@
 //   像素測試　同一塊截兩張，第二張把影片 filter:invert(1)，兩張要一模一樣。
 //             反相而不是把影片藏起來，是因為藏起來會換掉合成層，圓角的抗鋸齒跟著變，
 //             量到的 4/255 是算繪差異。配負控制（同畫面重截）與正控制（量沒遮的中央）。
-// 用法：node verify.mjs        node verify.mjs --headed
+// 深淺兩套外觀都要跑：預設自己把自己跑兩遍（--one 是單跑那一輪用的）。
+// 卡片本身沒有主題，所以 iframe 裡那些檢查在兩輪是同一件事；會真的不一樣的是預覽殼那幾項
+// 與所有截圖。全部跑兩遍是因為「兩輪都過」比「我判斷哪幾項不受影響」可靠。
+// 用法：node verify.mjs        node verify.mjs --headed        node verify.mjs --theme=light
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -13,8 +16,24 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
+/* ── 兩套外觀各跑一遍 ── */
+if (!process.argv.includes('--one')) {
+  const self = new URL(import.meta.url).pathname;
+  const pass = process.argv.slice(2).filter(a => !a.startsWith('--theme='));
+  let worst = 0;
+  for (const theme of ['dark', 'light']) {
+    console.log(`\n━━ 外觀：${theme === 'dark' ? '深色' : '淺色'} ━━`);
+    try { execFileSync('node', [self, '--one', '--theme=' + theme, ...pass], { stdio: 'inherit' }); }
+    catch { worst = 1; }
+  }
+  process.exit(worst);
+}
+const THEME = (process.argv.find(a => a.startsWith('--theme=')) || '--theme=dark').slice(8);
+const THEME_ = THEME;
+
 const ROOT = new URL('.', import.meta.url).pathname;
 const TMP = join(ROOT, 'shots');
+const shot = (n) => join(TMP, THEME === 'light' ? `light-${n}` : n);
 const TYPE = { '.html': 'text/html', '.webp': 'image/webp', '.mp4': 'video/mp4', '.png': 'image/png' };
 const server = createServer(async (req, res) => {
   const rel = decodeURIComponent(req.url.split('?')[0]);
@@ -43,6 +62,7 @@ const errs = [];
 page.on('pageerror', e => errs.push(String(e)));
 page.on('console', m => m.type() === 'error' && errs.push(m.text()));
 await page.goto(base);
+await page.evaluate(t => window.setTheme(t), THEME);
 await page.waitForTimeout(600);
 
 const card = () => page.frames().find(f => f.url().includes('card.html'));
@@ -68,6 +88,44 @@ const fail = (why) => { bad++; console.log('FAIL ' + why); };
   if (netErr) console.log(`SKIP 線上的 mp4｜連不出去（${netErr}），離線就跳過`);
   else if (code !== 200) fail(`線上的 mp4｜${URL_} 回 ${code}，正式專案指的就是這個網址，它壞了遊戲裡會是一片黑`);
   else console.log('PASS 線上的 mp4｜正式專案指的那個網址回 200');
+}
+
+/* ── 外觀：切得動、記得住、跟得上系統、對比度夠 ── */
+{
+  const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+  const lum = (c) => { const [r, g, b] = rgb(c).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+    return .2126 * r + .7152 * g + .0722 * b; };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + .05) / (y + .05); };
+
+  const now = await page.evaluate(() => window.getTheme());
+  const c = ratio(now.text, now.bg);
+  const dark = lum(now.bg) < .18;
+  const themeOk = now.attr === THEME_ && now.stored === THEME_ && c >= 4.5 && (THEME_ === 'dark') === dark;
+
+  // 記得住：重新整理之後還是同一套
+  await page.reload();
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => window.getTheme());
+
+  // 跟隨系統：清掉選擇之後不該留 data-theme，而且底色要跟著系統走
+  await page.evaluate(() => window.setTheme(''));
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.waitForTimeout(200);
+  const sysLight = await page.evaluate(() => window.getTheme());
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.waitForTimeout(200);
+  const sysDark = await page.evaluate(() => window.getTheme());
+  await page.emulateMedia({ colorScheme: null });
+  await page.evaluate(t => window.setTheme(t), THEME);   // 放回這一輪要驗的那套
+  await page.waitForTimeout(300);
+
+  const follows = !sysLight.attr && !sysDark.attr && sysLight.stored === null
+                  && lum(sysLight.bg) > .5 && lum(sysDark.bg) < .18;
+  if (!(themeOk && after.attr === THEME_ && after.stored === THEME_ && follows))
+    fail(`外觀｜data-theme=${now.attr} 存 ${now.stored} 對比 ${c.toFixed(2)}｜`
+      + `重新整理後 ${after.attr}/${after.stored}｜跟隨系統 ${follows}（淺 ${sysLight.bg} 深 ${sysDark.bg}，屬性 ${sysLight.attr}/${sysDark.attr}）`);
+  else console.log(`PASS 外觀｜切得動（data-theme=${now.attr}）、記得住（重新整理後還是 ${after.attr}）、`
+    + `沒選過就跟隨系統、正文對比 ${c.toFixed(2)}:1`);
 }
 
 /* ── 全域名字撞車 ──
@@ -114,7 +172,7 @@ for (const night of [2, 5, 8]) {
   const playing = await inCard(() => { const v = document.querySelector('#vid'); return !v.paused && v.currentTime > 0; });
   const rows = await inCard(() => document.querySelectorAll('#chat .row').length);
   const hit = await page.evaluate(() => window.checkCover());
-  await page.locator('#phone').screenshot({ path: join(TMP, `night-${night}.png`) });
+  await page.locator('#phone').screenshot({ path: shot(`night-${night}.png`) });
 
   // 停在第 5 秒（浮水印在那一幀）。聊天室與愛心會動，先藏起來，順便讓這一項變嚴：
   // 證明光靠遮罩、輸入列與分頁列就蓋住了，不靠剛好飄過去的字。
@@ -154,7 +212,7 @@ await page.waitForTimeout(3200);
 await page.frameLocator('#frame').locator('#say').click();
 await page.waitForTimeout(5200);                                  // 打字、刪掉、重打
 const draft = await inCard(() => document.querySelector('#cfield').textContent);
-await page.locator('#phone').screenshot({ path: join(TMP, 'compose.png') });
+await page.locator('#phone').screenshot({ path: shot('compose.png') });
 await page.frameLocator('#frame').locator('#csend').click();
 await page.waitForTimeout(500);
 const mineIn = await inCard(() => !!document.querySelector('#chat .row.mine'));
@@ -172,15 +230,15 @@ const pages = [
   ['live', 7, 2, ['上次開台：第五天', '聊天室最後一則：今天講到哪了'], 'page-offair'],
   ['live', 13, 2, ['第十三天', '上次開台：第八天', '聊天室最後一則：這集有我'], 'page-offair-d13'],
 ];
-for (const [tab, d, s, want, shot] of pages) {
+for (const [tab, d, s, want, shotName] of pages) {
   await page.evaluate(([t, d, s]) => { window.setTime(d, s); window.show(t); }, [tab, d, s]);
   await page.waitForTimeout(350);
   const txt = await inCard(() => document.querySelector('#page').textContent);
   const paused = await inCard(() => document.querySelector('#vid').paused);
   const missing = want.filter(w => !txt.includes(w));
-  await page.locator('#phone').screenshot({ path: join(TMP, shot + '.png') });
-  if (missing.length || !paused) fail(`${shot}｜缺 ${JSON.stringify(missing)}｜影片有停 ${paused}`);
-  else console.log(`PASS ${shot}｜該有的字都在，離開直播時影片有停`);
+  await page.locator('#phone').screenshot({ path: join(TMP, (THEME === 'light' ? 'light-' : '') + shotName + '.png') });
+  if (missing.length || !paused) fail(`${shotName}｜缺 ${JSON.stringify(missing)}｜影片有停 ${paused}`);
+  else console.log(`PASS ${shotName}｜該有的字都在，離開直播時影片有停`);
 }
 
 /* 電話那一格拿掉了（整合回-glitch-vn.md 五之三）：分頁剩三格，那兩行字一個都不能留 */
@@ -205,7 +263,7 @@ for (const [tab, d, s, want, shot] of pages) {
     feed: !document.querySelector('#dot-feed').hidden,
     live: !document.querySelector('#dot-live').hidden }));
   const msgRead = await page.evaluate(() => window.getSaved().phone_msg_seen === 3);
-  await page.locator('#phone').screenshot({ path: join(TMP, 'dots.png') });
+  await page.locator('#phone').screenshot({ path: shot('dots.png') });
   for (const t of ['feed', 'live']) { await page.evaluate(x => window.show(x), t); await page.waitForTimeout(900); }
   const out2 = await inCard(() => ({
     msg: !document.querySelector('#dot-msg').hidden,
@@ -254,7 +312,7 @@ const push5 = await inCard(() => [...document.querySelectorAll('#page .msg .bub'
 await page.evaluate(() => { window.setTime(8, 2); window.setFlag('open_studio'); window.show('msg'); });
 await page.waitForTimeout(300);
 const withFlag = await inCard(() => document.querySelector('#page').textContent);
-await page.locator('#phone').screenshot({ path: join(TMP, 'page-msg-flag.png') });
+await page.locator('#phone').screenshot({ path: shot('page-msg-flag.png') });
 if (!(push5 === 2 && push8 === 3 && withFlag.includes('有空來工作室')))
   fail(`訊息｜第五天晚上該有 2 則推播，量到 ${push5}；第八天該有 3 則，量到 ${push8}；旗標開了之後斑比那則 ${withFlag.includes('有空來工作室')}`);
 else console.log('PASS 訊息｜第五天 2 則推播、第八天 3 則，旗標開了斑比那則才出現');
@@ -285,7 +343,7 @@ else console.log('PASS 收起來｜寫了 open_phone=false 與 phone_day_seen=8�
 await page.evaluate(() => window.setMode('banner'));
 await page.waitForTimeout(900);
 const stripIn = await inCard(() => document.querySelector('#strip').classList.contains('in'));
-await page.locator('#phone').screenshot({ path: join(TMP, 'banner.png') });
+await page.locator('#phone').screenshot({ path: shot('banner.png') });
 const logWrite = await page.evaluate(() => window.getWrites().find(w => w.name === 'phone_log'));
 await page.waitForTimeout(2400);
 const bannerDone = await page.evaluate(() => window.getWrites().some(w => w.done));
@@ -297,7 +355,7 @@ await page.evaluate(() => { window.setMode('full'); });
 await page.waitForTimeout(900);
 await page.evaluate(() => { window.setTime(8, 2); window.show('live'); });
 await page.waitForTimeout(700);
-await page.locator('#phone').screenshot({ path: join(TMP, 'loading.png') });
+await page.locator('#phone').screenshot({ path: shot('loading.png') });
 
 if (errs.length) { console.log('主控台錯誤：', errs); bad++; }
 await browser.close(); server.close();

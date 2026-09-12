@@ -11,22 +11,49 @@
 -->
 <style>
 :root{
+  /* 深色＝現況。淺色在下面兩處，那兩份要一起改（CSS 沒辦法讓 @media 跟屬性選擇器共用一份宣告）。 */
   --bg:#04080c; --win:#11161b; --sunk:#0a1319; --body:#15171d; --edge:#2a2d36;
   --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
   --cy:#25c2e8; --mint:#7cf3c0; --purple:#b78bff;
   --text:#dfe8ec; --muted:#93a3ac; --faint:#6d7d84;
+  --glow1:rgba(183,139,255,.16); --glow2:rgba(37,194,232,.12);
+  --shadow:0 30px 90px rgba(0,0,0,.7); --bezel:0 0 0 2px var(--edge),0 0 60px rgba(183,139,255,.12);
+  --bar:rgba(183,139,255,.4); --bar-hi:rgba(183,139,255,.65);
 }
-*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(183,139,255,.4) transparent}
+/* 淺色（其一）：沒有選過的時候跟隨系統 */
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#eef1f5; --win:#ffffff; --sunk:#f3f5f8; --body:#d9dde4; --edge:#c3c9d2;
+    --line:rgba(16,24,32,.10); --line2:rgba(16,24,32,.17);
+    --cy:#0f7fa0; --mint:#1a9b74; --purple:#7a4fd0;
+    --text:#16202a; --muted:#4e5c68; --faint:#77848f;
+    --glow1:rgba(122,79,208,.13); --glow2:rgba(15,127,160,.10);
+    --shadow:0 24px 60px rgba(20,30,45,.22); --bezel:0 0 0 2px var(--edge),0 0 44px rgba(122,79,208,.16);
+    --bar:rgba(122,79,208,.42); --bar-hi:rgba(122,79,208,.7);
+  }
+}
+/* 淺色（其二）：使用者自己選的。跟上面那份必須一樣。 */
+:root[data-theme="light"]{
+  --bg:#eef1f5; --win:#ffffff; --sunk:#f3f5f8; --body:#d9dde4; --edge:#c3c9d2;
+  --line:rgba(16,24,32,.10); --line2:rgba(16,24,32,.17);
+  --cy:#0f7fa0; --mint:#1a9b74; --purple:#7a4fd0;
+  --text:#16202a; --muted:#4e5c68; --faint:#77848f;
+  --glow1:rgba(122,79,208,.13); --glow2:rgba(15,127,160,.10);
+  --shadow:0 24px 60px rgba(20,30,45,.22); --bezel:0 0 0 2px var(--edge),0 0 44px rgba(122,79,208,.16);
+  --bar:rgba(122,79,208,.42); --bar-hi:rgba(122,79,208,.7);
+}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--bar) transparent}
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(183,139,255,.4);border-radius:4px}
-::-webkit-scrollbar-thumb:hover{background:rgba(183,139,255,.65)}
+::-webkit-scrollbar-thumb{background:var(--bar);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--bar-hi)}
 html,body{margin:0;min-height:100%}
 body{background:
-    radial-gradient(1100px 700px at 50% -10%,rgba(183,139,255,.16),transparent 62%),
-    radial-gradient(800px 500px at 12% 108%,rgba(37,194,232,.12),transparent 60%),
+    radial-gradient(1100px 700px at 50% -10%,var(--glow1),transparent 62%),
+    radial-gradient(800px 500px at 12% 108%,var(--glow2),transparent 60%),
     var(--bg);
   color:var(--text);
+  transition:background-color .2s,color .2s;
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;justify-content:center;
   padding-block:36px;padding-left:16px;padding-right:16px}
@@ -34,7 +61,7 @@ body{background:
 /* 手機殼是預覽殼的東西，不是卡片的。Larch 裡卡片就是整個畫面。 */
 #phone{position:relative;flex:none;width:min(390px,92vw);height:min(800px,88vh);min-height:620px;
   background:var(--body);border-radius:38px;padding:12px;
-  box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 0 2px var(--edge),0 0 60px rgba(183,139,255,.12)}
+  box-shadow:var(--shadow),var(--bezel)}
 #frame{position:relative;width:100%;height:100%;border:0;border-radius:28px;display:block;background:transparent}
 /* 橫幅模式時在 iframe 後面放一張，透得出來就看得到她，白掉或黑掉就是卡片沒透明 */
 #phone.banner{background:var(--body) url("assets/poster.webp") center/cover no-repeat}
@@ -53,7 +80,9 @@ body{background:
 .grp button.on{background:var(--cy);border-color:var(--cy);color:#04080c;font-weight:700}
 #out{margin-top:12px;font-size:11.5px;line-height:1.8;color:var(--faint);white-space:pre-wrap;
   background:var(--sunk);border-radius:8px;padding:10px 12px;min-height:38px}
-#out .ok{color:var(--mint)} #out .no{color:#ff8b93}
+#out .ok{color:var(--mint)} #out .no{color:#d3384a}
+:root:not([data-theme="light"]) #out .no{color:#ff8b93}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) #out .no{color:#ff8b93} }
 #wrote{margin-top:10px;font-size:11px;line-height:1.75;color:var(--faint);background:var(--sunk);
   border-radius:8px;padding:10px 12px;max-height:150px;overflow-y:auto;font-variant-numeric:tabular-nums}
 #wrote b{color:var(--purple);font-weight:600}
@@ -61,12 +90,22 @@ body{background:
 #wrote .none{color:#3f4a51}
 </style>
 
+<script>
+/* 早於版面：選過的人重新整理不要先閃一下系統色。沒選過就不掛屬性，交給 prefers-color-scheme。 */
+try{ var t=localStorage.getItem('glitch-live-theme');
+     if(t==='light'||t==='dark') document.documentElement.setAttribute('data-theme',t); }catch(e){}
+</script>
+
 <div id="phone"><iframe id="frame" src="card.html" title="她的手機"></iframe></div>
 
 <div id="panel">
   <h1>她的手機・畫面原型</h1>
   <p>右邊這一塊是預覽殼，扮演 Larch 當宿主。手機裡跑的是 <code>card.html</code>，
      整合時那個檔整份複製成 <code>larch/cards/phone.html</code>。做法見 <code>整合回-glitch-vn.md</code>。</p>
+  <p>深淺只換這個外框。<strong>手機螢幕本身一律是暗的</strong>——那是夜裡場景裡的一支手機，
+     不該跟著看的人的系統主題變，遊戲裡也不會。</p>
+  <h2>外觀</h2>
+  <div class="grp" id="themes"></div>
   <h2>第幾天（板到第十三天）</h2>
   <div class="grp" id="days"></div>
   <h2>什麼時候</h2>
@@ -95,6 +134,22 @@ var FLAG_MSG = {
   open_studio:{label:'工作室開了', who:'斑比',     text:'有空來工作室。稿子帶著。'}
 };
 var day=8, slot=2, mode='full', flags={met_櫃檯:0, open_studio:0}, wrote=[];
+
+/* ── 外觀（只管這個外框，手機螢幕不跟著換） ──
+   三態：沒選過＝跟隨系統（不寫 data-theme，交給 prefers-color-scheme），選了就記在 localStorage。
+   第一次進站不硬塞一個值，所以 localStorage 沒有鍵的時候就是「跟隨系統」。 */
+var THEME_KEY = 'glitch-live-theme';
+function readTheme(){
+  try{ var v=localStorage.getItem(THEME_KEY); return (v==='light'||v==='dark') ? v : ''; }
+  catch(e){ return ''; }   // 無痕視窗或擋了 site data 的時候 localStorage 會丟，跟隨系統就好
+}
+function applyTheme(v){
+  if(v) document.documentElement.setAttribute('data-theme', v);
+  else document.documentElement.removeAttribute('data-theme');
+  try{ if(v) localStorage.setItem(THEME_KEY, v); else localStorage.removeItem(THEME_KEY); }catch(e){}
+  Array.prototype.forEach.call(document.querySelectorAll('#themes button'),function(b){
+    b.className = b.dataset.t===v ? 'on' : ''; });
+}
 /* 卡片寫回來的變數留在這裡，下一次 larch:init 再送回去。
    Larch 會把變數存進存檔，預覽殼要模擬那件事，否則驗不出紅點看過會不會真的消失。 */
 var saved = {phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0};
@@ -180,6 +235,13 @@ Object.keys(flags).forEach(function(k){
   });
   $('#flags').appendChild(b);
 });
+[['','跟隨系統'],['light','淺'],['dark','深']].forEach(function(t){
+  var b=el('button',null,t[1]); b.type='button'; b.dataset.t=t[0];
+  b.addEventListener('click',function(){ applyTheme(t[0]); });
+  $('#themes').appendChild(b);
+});
+applyTheme(readTheme());
+
 [['full','從背包打開'],['banner','收到訊息的橫幅']].forEach(function(m){
   var b=el('button',null,m[1]); b.type='button'; b.dataset.m=m[0];
   b.addEventListener('click',function(){ setMode(m[0]); });
@@ -220,6 +282,14 @@ window.setTime=setTime; window.setMode=setMode; window.wmRect=wmRect; window.che
 window.setFlag=function(k){ flags[k]=flags[k]?0:day; paint(); sendInit(); };
 window.forget=function(){ saved={phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0}; reload(); };
 window.getSaved=function(){ return saved; };
+window.setTheme=applyTheme;
+window.getTheme=function(){
+  var attr=document.documentElement.getAttribute('data-theme');
+  var stored; try{ stored=localStorage.getItem(THEME_KEY); }catch(e){ stored=null; }
+  return {attr:attr, stored:stored,
+          bg:getComputedStyle(document.body).backgroundColor,
+          text:getComputedStyle(document.body).color};
+};
 window.dropTonight=function(v){ skipTonight=!!v; sendInit(); };
 window.show=function(p){ frame.contentWindow.show(p); };
 window.getWrites=function(){ return wrote; };

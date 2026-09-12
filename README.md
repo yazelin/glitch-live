@@ -49,6 +49,23 @@
 
 **一個字都沒有自己加。** 貼文、留言、ID 的口氣、兩年前那三行、三晚的聊天室，全部照設計文件。
 
+## 深淺外觀
+
+**只換 demo 的外框，手機螢幕本身一律是暗的。** 那是夜裡場景裡的一支手機，
+不該跟著看的人的系統主題變，遊戲裡也不會——`card.html` 沒有任何主題注入點，
+也不打算加。
+
+三態：沒選過就跟隨系統（`prefers-color-scheme`，不寫 `data-theme`），
+選了記在 `localStorage['glitch-live-theme']`，重新整理還是那一套。
+第一次進站不硬塞一個值。無痕視窗或擋了 site data 時 `localStorage` 會丟例外，
+接住之後退回跟隨系統。
+
+切換放在主控台最上面，不做浮動按鈕：窄螢幕時手機的右上角是「追蹤」，
+浮動按鈕會壓在它上面。主控台在手機外框之外，任何寬度都不會擋到內容。
+
+`verify.mjs` 兩套各跑一遍（`node verify.mjs` 預設就是兩遍），截圖分開存：
+淺色那一輪的檔名前面多一個 `light-`。
+
 ## 紅點
 
 分頁列唯一的新鮮度訊號。兩條規矩：
@@ -101,9 +118,10 @@
 右邊主控台的「驗浮水印」按鈕跑的是同一支命中測試。
 
 ```
-npm i                      # 只為了 playwright
-node verify.mjs            # 跑驗收，截圖存到 shots/
-node verify.mjs --headed   # 開視窗看
+npm i                        # 只為了 playwright
+node verify.mjs              # 深淺各跑一遍，截圖存到 shots/
+node verify.mjs --theme=light  # 只跑淺色那一輪
+node verify.mjs --headed     # 開視窗看
 ```
 
 ## 檔案
