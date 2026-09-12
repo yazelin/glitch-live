@@ -1,9 +1,12 @@
 # glitch-live 待辦
 
-**卡片已釘住：`phone-v1`**
-`https://raw.githubusercontent.com/yazelin/glitch-live/phone-v1/card.html`
-（commit `b50f6b9`，打 tag 時 verify 深淺各 22 項兩輪全過）
-整合過程要改卡片就打 `phone-v2`，不要動 `phone-v1`。
+**卡片已釘住：`phone-v2`　← 整合拉這個**
+`https://raw.githubusercontent.com/yazelin/glitch-live/phone-v2/card.html`
+（commit `c411160`，打 tag 時 verify 深淺各 23 項兩輪全過）
+
+跟 `phone-v1` 只差一處：`#reply` 的送出鈕畫得出來了（移植 glitch-vn `c886435`）。
+`phone-v1` 那顆是空的 `<i>`，整合會把 glitch-vn 今天的修蓋回去。**不要拉 v1。**
+再要改就打 `phone-v3`，不要動已經發出去的 tag。
 
 **等 w1D**：重產通關路線基準（規格在 `交辦-重產通關路線基準.md`）。那件做完才進整合那一輪。
 
@@ -11,16 +14,18 @@
 
 ```bash
 node ~/glitch-live/dev/check-transcript.mjs <transcript>   # 四點，不過 exit 1
-node ~/glitch-live/dev/check-transcript.mjs --self-test     # 負控制：證明弄壞會紅
+node ~/glitch-live/dev/check-transcript.mjs --self-test     # 負控制：四種壞法各自要由該抓的那一點抓到
 ```
 
 **這一支只管手機。路線歸 glitch-vn 的 `tools/route_diff.py`。** 原本那項 A「路線逐字比」
 拿掉了：`board.html:262` 用未定種子的 `Math.random()` 決定訪客，逐格重現做不到，
 而且 A 的比法把 `[手機]` 那幾行濾掉、本來就看不到手機壞掉。
 
-**不要拿 B、C 當手機有沒有跑到的證據，要看 E。** B、C 只驗逐字稿裡真的有手機那一行的天，
-為的是容忍訪客隨機造成的浮動；**覆蓋率歸 E 管**。負控制裡「半壞」那個案例
-（手機只在三天開得成）B、C、D 全綠、只有 E 紅——那種壞法長得跟路線浮動一模一樣。
+**兩邊都不能單獨用。** B、C 只驗逐字稿裡真的有手機那一行的天（容忍訪客隨機造成的擺動），
+所以手機整段沒跑到的時候它們是綠的——**覆蓋率歸 E 管**。反過來，內容少一則的時候 E 是綠的
+——**內容歸 B、C 管**。負控制四種壞法各自證明了是哪一點抓到的。
+
+容忍度的判準講死了：整天缺席＝跳過，有行但數字不對＝紅。**沒有「差一以內都算過」這種寫法。**
 
 **整合方案在 `整合回-glitch-vn.md`，這裡只留還沒做完的。**
 
