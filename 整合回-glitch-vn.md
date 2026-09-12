@@ -35,6 +35,9 @@ glitch-vn 在發佈流程的最後一哩：正篇剛發 release 4、市集簡介
 | `verify.mjs` | 不搬 | 留在 glitch-live |
 | `assets/live-loop.mp4`、`assets/poster.webp` | 見第五節 | 還沒拍板 |
 
+`ref/` 裡除了設計參考圖，還有一支沒有採用的循環影片（`ref/街景循環-未採用.mp4`）。
+不採用的三個理由與「要用之前先處理什麼」寫在 `ref/README.md`，整合時不用管它。
+
 `card.html` 是完整的卡片本體，不含手機殼、不含主控台。
 Larch 裡卡片就是整個畫面，手機殼是預覽殼畫的。
 
