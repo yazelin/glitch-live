@@ -209,13 +209,28 @@ PASS 負控制有效：線上那一份跟釘住的不一樣就會紅。
 
 ```
 card.html                  卡片本體。整合時整份複製成 glitch-vn/larch/cards/phone.html
+                           **目前釘在 tag phone-v2（c411160）**，要改就打 phone-v3，
+                           不要動已經發出去的 tag——w1D 是照那個 tag 拉的
 index.html                 預覽殼，扮演 Larch 當宿主。不進遊戲
-整合回-glitch-vn.md        整合方案與驗收清單
 assets/live-loop.mp4       直播畫面，720×1280、10 秒、首尾同幀可以無縫循環
 assets/poster.webp         載入時的預覽圖，也是頭像的來源
-ref/                       設計參考圖
-verify.mjs                 驗收腳本
-dev/probe-sandbox-video.mjs  平台能力探測
+ref/                       設計參考圖（含一支沒採用的循環影片，理由在 ref/README.md）
+快照/                      Larch 專案整包快照。那個平台的 PUT 會清空版子，這是唯一的回頭路
+
+驗收工具（全部要 playwright，見上面「先裝相依」）
+  verify.mjs                     卡片本身。深淺各跑一遍，每輪 23 項
+  dev/check-live.mjs             **部署出去的站**。verify.mjs 只讀本機檔，驗不到這個
+  dev/check-transcript.mjs       通關逐字稿裡手機那幾行。四點，--self-test 是負控制
+  dev/probe-sandbox-video.mjs    平台能力探測：sandbox iframe 載不載得動跨網域影片
+  dev/probe-sandbox-storage.mjs  平台能力探測：sandbox iframe 存不存得住東西（答案是不行）
+  給-glitch-vn/storylint.py      給 glitch-vn 用的靜態檢查，套進它的 tools/
+
+文件（各自對著不同的讀者）
+  整合回-glitch-vn.md            要改手機卡片／要做整合的人
+  交辦-重產通關路線基準.md        要重產通關基準的人（第四節是整合時 autoplay.mjs 要改的五處）
+  規格-劇情模式順順通關.md        第五道關的三層判準
+  規格-配音與BGM掛回板子.md       要把配音與 BGM 掛回板子的人
+  NEXT.md                        還沒做完的，以及今天學到而且會再犯的幾條
 ```
 
 ## 兩種模式

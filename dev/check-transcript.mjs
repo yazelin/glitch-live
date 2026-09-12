@@ -205,5 +205,16 @@ const t = await readFile(path, 'utf8');
 const rows = run(t);
 show(rows);
 const bad = rows.filter(x => x[1] === false).length;
-console.log('\n' + (bad ? `${bad} 點不過，不要覆蓋基準。` : '全部通過。'));
+if (bad) console.log(`\n${bad} 點不過，不要覆蓋基準。`);
+else {
+  // 這段要印在**綠的時候**。看到綠報告的人不會去翻 NEXT.md，
+  // 而「B、C 綠」在手機整段沒跑到的時候也會成立——那是今天踩過的假綠。
+  console.log('\n全部通過。');
+  console.log('  B、C 的綠只在「有東西可驗」的前提下才有意義，而那個前提由 E 保證：');
+  console.log('    B、C 只驗逐字稿裡真的有 [手機] 那一行的天（為了容忍訪客隨機造成的路線擺動）；');
+  console.log('    手機整段沒跑到的話它們什麼都沒驗到，卻仍然印綠。');
+  console.log('  所以不要拿 B、C 當「手機有沒有跑到」的證據，看 E 的行數。');
+  console.log('  反過來內容少一則的時候 E 是綠的，內容歸 B、C 管。兩邊少一邊都會漏。');
+  console.log('  要證明這幾點現在還成立：node dev/check-transcript.mjs --self-test <真的逐字稿>');
+}
 process.exit(bad ? 1 : 0);
