@@ -1,7 +1,13 @@
 // 通關路線逐字稿的驗收閘。跑：
 //
 //   node dev/check-transcript.mjs <新的 transcript>
-//   node dev/check-transcript.mjs --self-test        ← 負控制：證明弄壞它會紅
+//   node dev/check-transcript.mjs --self-test                 ← 負控制，跑在合成的逐字稿上
+//   node dev/check-transcript.mjs --self-test <真的逐字稿>     ← 同樣四種壞法，但拿真檔來改
+//
+// **有真檔就用真檔。** 2026-09-12 踩過：合成的逐字稿每天只有一個時段標頭，
+// 而真的每天有 2–4 個，切區塊那條正規式因此只涵蓋當天第一個時段、手機永遠落在區塊外，
+// B 與 C 恆綠——而負控制在那份合成資料上四種壞法全部正常變紅。
+// **fixture 不同形，負控制驗的就是 fixture 不是工具。**
 //
 // **這一支只管手機。路線歸 glitch-vn 的 tools/route_diff.py 管。**
 // 原本這裡有一項 A「路線沒變（逐字比）」，2026-09-12 拿掉了：
@@ -32,13 +38,30 @@ const CUM  = { 1:2, 2:3, 3:4, 4:5, 5:5, 6:6, 7:6, 8:7, 9:8, 10:9, 11:10, 12:11, 
 const POST = Object.fromEntries([...Array(13)].map((_, i) => [i + 1, CUM[Math.min(i + 2, 13)]]));
 const NEW  = ['立牌站得有點歪', '這禮拜的排程', '明天也會開台。你們來', '下個月的新周邊'];
 
-const dayBlock = (t, d) => {
-  const m = t.match(new RegExp(`=== 板 第 ${d} 天[\\s\\S]*?(?==== 板 第 |=== 統計|$)`));
-  return m ? m[0] : '';
-};
+/* 一天有好幾個時段標頭（`=== 板 第 N 天 ・ 上午/下午/晚上/深夜 | …`），
+   第一天 2 個、第二三天 3 個、第四天起 4 個，而**手機一律在當天最後一個時段**
+   （第 1–3 天在晚上、第 4 天起在深夜）。
+   2026-09-12 這裡原本是一條惰性比對加前瞻的正規式，前瞻停在下一個「=== 板 第 」，
+   而那通常是**同一天的下一個時段**，所以區塊只涵蓋當天第一個時段，手機永遠落在區塊外，
+   B 與 C 恆綠。逐行切就沒有這個問題。 */
+function dayBlocks(t) {
+  const out = {};
+  let cur = null;
+  for (const line of t.split('\n')) {
+    const m = line.match(/^=== 板 第 (\d+) 天/);
+    if (m) cur = Number(m[1]);
+    else if (/^=== 統計/.test(line)) cur = null;
+    if (cur != null) (out[cur] = out[cur] || []).push(line);
+  }
+  for (const k of Object.keys(out)) out[k] = out[k].join('\n');
+  return out;
+}
+let BLK = {};
+const dayBlock = (t, d) => BLK[d] || '';
 const num = (blk, label) => { const m = blk.match(new RegExp(`${label} (\\d+) 則`)); return m ? Number(m[1]) : null; };
 
 function run(t) {
+  BLK = dayBlocks(t);
   const r = [];
   // 只看逐字稿裡真的有手機那一行的天；哪幾天開得成由 E 管
   const seen = DAYS.filter(d => num(dayBlock(t, d), '訊息') !== null);
@@ -67,38 +90,92 @@ const show = (rows) => rows.forEach(([n, ok, why]) =>
 
 /* ── 負控制 ── */
 if (process.argv.includes('--self-test')) {
-  const mk = (broken) => DAYS.map(d =>
-    `=== 板 第 ${d} 天 | 便條：… | 可去：…\n` +
-    (broken ? '  [手機] 打不開'
-            : `  [手機] 訊息 ${MSG[d]} 則 []；貼文 ${POST[d]} 則：立牌站得有點歪，剛剛｜這禮拜的排程跟上禮｜明天也會開台。你們來｜下個月的新周邊做好｜…`)
-  ).join('\n') + '\n=== 統計：出門 48 次，到過 {…}，選過 37 格，1409 秒';
-  const good = mk(false), bad = mk(true);
+  const realPath = process.argv[process.argv.indexOf('--self-test') + 1];
+  const real = realPath ? await readFile(realPath, 'utf8') : null;
 
-  const line = (d, msg, post) =>
+  /* 拿真檔改出四種壞法。手機那一段在真檔裡是連續三行
+     （訊息／直播頁＋電話頁／回應列），整組換成一行「打不開」才像真的壞掉。 */
+  const mutate = (t, fn) => {
+    const lines = t.split('\n'), out = [];
+    let day = null, run = [];
+    const flush = () => { if (run.length) { const r = fn(day, run); if (r) out.push(...r); run = []; } };
+    for (const l of lines) {
+      const m = l.match(/^=== 板 第 (\d+) 天/);
+      if (m) { flush(); day = Number(m[1]); }
+      if (/^\s*\[手機\]/.test(l)) { run.push(l); continue; }
+      flush(); out.push(l);
+    }
+    flush();
+    return out.join('\n');
+  };
+  const dead = () => ['  [手機] 打不開'];
+  const minus = (label, target) => (d, run) => d !== target ? run
+    : run.map(l => l.replace(new RegExp(`${label} (\\d+) 則`), (_, n) => `${label} ${Number(n) - 1} 則`));
+
+  /* fixture 要跟真實逐字稿同形，否則負控制驗的是 fixture 不是工具。
+     真實的形狀（量自 design/調查篇-通關路線.txt）：
+       第 1 天 2 個時段（下午、晚上），第 2–3 天 3 個（上午、下午、晚上），第 4 天起 4 個（加深夜）
+       標頭是「=== 板 第 N 天 ・ 時段 | 便條：… | 可去：…」
+       **手機一律在當天最後一個時段**，第 1–3 天在晚上、第 4 天起在深夜
+       第 10 與第 13 天沒有開手機 */
+  const SLOTS = (d) => d === 1 ? ['下午', '晚上'] : d <= 3 ? ['上午', '下午', '晚上']
+                                                 : ['上午', '下午', '晚上', '深夜'];
+  const line = (msg, post) =>
     `  [手機] 訊息 ${msg} 則 []；貼文 ${post} 則：立牌站得有點歪，剛剛｜這禮拜的排程跟上禮｜明天也會開台。你們來｜下個月的新周邊做好｜…`;
-  const build = (fn) => DAYS.map((d, i) => `=== 板 第 ${d} 天 | 便條：… | 可去：…\n` + fn(d, i)).join('\n')
-    + '\n=== 統計：出門 48 次，到過 {…}，選過 37 格，1409 秒';
+  // phone(d) 回傳那一天最後一個時段要印的手機那幾行（回 null 代表那天沒開手機）
+  const build = (phone) => {
+    const out = [];
+    for (let d = 1; d <= 13; d++) {
+      const slots = SLOTS(d);
+      slots.forEach((sl, i) => {
+        out.push(`=== 板 第 ${d} 天 ・ ${sl} | 便條：… | 可去：一樓(管理員)、便利商店(店員)`);
+        out.push(`→ 選「去便利商店」`);
+        out.push(`  旁白 走進去。冷氣很強。`);
+        if (i === slots.length - 1) {            // 最後一個時段才開背包
+          const ph = phone(d);
+          if (ph) out.push(ph);
+        }
+      });
+    }
+    out.push('=== 統計：出門 48 次，到過 {…}，選過 37 格，1409 秒');
+    return out.join('\n');
+  };
+  const normal = (d) => DAYS.includes(d) ? line(MSG[d], POST[d]) : null;
+  const good = build(normal);
 
-  // 三種壞法。每一種都要紅，而且要是「該抓的那一點」抓到的。
+  // 三種壞法加一個邊界案例。每一種都要紅，而且要是「該抓的那一點」抓到的。
   const cases = [
     ['一、手機整個打不開', 'E',
-     build(() => '  [手機] 打不開')],
+     build((d) => DAYS.includes(d) ? '  [手機] 打不開' : null)],
     ['二、第五天少一則訊息', 'B',
-     build((d) => line(d, d === 5 ? MSG[d] - 1 : MSG[d], POST[d]))],
+     build((d) => !DAYS.includes(d) ? null : line(d === 5 ? MSG[d] - 1 : MSG[d], POST[d]))],
     ['三、第九天少一則貼文', 'C',
-     build((d) => line(d, MSG[d], d === 9 ? POST[d] - 1 : POST[d]))],
-    // 這一種是容忍度的邊界：整天缺席（路線擺動）不該紅 B/C，但覆蓋率掉下來要紅 E
+     build((d) => !DAYS.includes(d) ? null : line(MSG[d], d === 9 ? POST[d] - 1 : POST[d]))],
     ['四、半壞：只有三天開得成', 'E',
-     build((d, i) => i < 3 ? line(d, MSG[d], POST[d]) : '  [手機] 打不開')],
+     build((d) => !DAYS.includes(d) ? null
+            : DAYS.indexOf(d) < 3 ? line(MSG[d], POST[d]) : '  [手機] 打不開')],
   ];
 
+  let GOOD = good, CASES = cases;
+  if (real) {
+    let seen = 0;
+    GOOD = real;
+    CASES = [
+      ['一、手機整個打不開', 'E', mutate(real, dead)],
+      ['二、第五天少一則訊息', 'B', mutate(real, minus('訊息', 5))],
+      ['三、第九天少一則貼文', 'C', mutate(real, minus('貼文', 9))],
+      ['四、半壞：只有三天開得成', 'E', mutate(real, (d, run) => (++seen <= 3 ? run : dead()))],
+    ];
+    console.log(`（拿真的逐字稿來改：${realPath}）\n`);
+  }
+
   console.log('好的逐字稿（手機正常）：');
-  const g = run(good); show(g);
+  const g = run(GOOD); show(g);
   const gOk = g.every(x => x[1] !== false);
 
   const red = (rows) => rows.filter(x => x[1] === false).map(x => x[0][0]);
   let allFine = gOk;
-  for (const [name, want, text] of cases) {
+  for (const [name, want, text] of CASES) {
     console.log(`\n${name}　（應該由 ${want} 抓到）`);
     const rows = run(text); show(rows);
     const got = red(rows);
@@ -115,7 +192,8 @@ if (process.argv.includes('--self-test')) {
   // 數字從 cases 算，不要寫死：寫死就會在加案例的時候漂掉，
   // 而「少數了一種」正好是這支工具在防的那種壞法。
   console.log('\n' + (allFine
-    ? `PASS 負控制有效：好的全綠，${cases.length} 種壞法各自被該抓的那一點抓到。`
+    ? `PASS 負控制有效：好的全綠，${CASES.length} 種壞法各自被該抓的那一點抓到（`
+      + (real ? '真的逐字稿' : '合成逐字稿') + '）。'
     : 'FAIL 負控制無效——有壞法沒被該抓的那一點抓到，先修驗收再談整合。'));
   process.exit(allFine ? 0 : 1);
 }
