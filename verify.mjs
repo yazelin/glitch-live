@@ -90,6 +90,34 @@ const fail = (why) => { bad++; console.log('FAIL ' + why); };
   else console.log('PASS 線上的 mp4｜正式專案指的那個網址回 200');
 }
 
+/* ── 注入形狀 ──
+   push.py 的 phone_feed() 吐出來的 comment.id **自帶 @**（正規表示式是 `(@\\S+?)：`），
+   而「兩年前」那一串裡格莉奇自己那一行沒有 @。卡片如果自己再補一個就會變成 @@。
+   這一項直接用「注入之後的形狀」餵卡片，因為預設值跟注入值形狀一樣的話，
+   只驗預設值是驗不出來的——這個 bug 就是這樣藏到今天的。 */
+{
+  const inj = await browser.newPage({ viewport: { width: 780, height: 920 } });
+  await inj.route('**/card.html', async r => {
+    let t = await (await r.fetch()).text();
+    t = t.replace('var POSTS = /*@@POSTS@@*/[];',
+      'var POSTS = [{day:1,text:"注入的貼文",to:"x",comments:[{id:"@Bambi_Draft3",text:"內頁的格線重排過了",tm:""}]}];');
+    t = t.replace('var OLD = /*@@OLD@@*/[];',
+      'var OLD = [{id:"@考完就刪",text:"我剛剛考完了。",deleted:true,self:false},' +
+      '{id:"格莉奇",text:"謝謝你！我會記得的。",deleted:false,self:true}];');
+    await r.fulfill({ body: t, contentType: 'text/html' });
+  });
+  await inj.goto(base);
+  await inj.waitForTimeout(700);
+  await inj.evaluate(() => { window.setTime(8, 2); window.show('feed'); });
+  await inj.waitForTimeout(400);
+  const fr = inj.frames().find(f => f.url().includes('card.html'));
+  const ids = await fr.evaluate(() => [...document.querySelectorAll('#page .cm .id')].map(e => e.textContent));
+  await inj.close();
+  const okIds = ids.length === 3 && ids[0] === '@Bambi_Draft3' && ids[1] === '@考完就刪' && ids[2] === '格莉奇';
+  if (!okIds) fail(`注入形狀｜留言 ID 渲染成 ${JSON.stringify(ids)}，應該是 ["@Bambi_Draft3","@考完就刪","格莉奇"]`);
+  else console.log('PASS 注入形狀｜push.py 那種自帶 @ 的 id 不會變成 @@，格莉奇那一行也沒有被加 @');
+}
+
 /* ── 外觀：切得動、記得住、跟得上系統、對比度夠 ── */
 {
   const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);

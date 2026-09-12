@@ -28,6 +28,7 @@
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.34)}
+html{color-scheme:dark}   /* 手機螢幕永遠是暗的。不宣告的話捲軸這類 UA 自己畫的東西會跟著玩家的系統走 */
 html,body{margin:0;height:100%;overflow:hidden;color:var(--text);
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
 html{background:transparent}
@@ -357,27 +358,31 @@ var NIGHTS_DEFAULT = {
 var DRAFT = { first:'你記得昨天講到哪嗎', keep:3, then:'開場講了什麼嗎' };
 
 /* ── 官方帳號的貼文（design/調查篇-手機.md 二之二） ── */
+/* POSTS 與 OLD 的 comment.id **自帶 @**，因為 push.py 的 phone_feed() 是用
+   `(@\S+?)：` 抓的，@ 在捕獲組裡；而「兩年前」那一串裡格莉奇自己那一行沒有 @。
+   所以下面的預設值也要自帶 @，兩種來源形狀才一樣。**聊天室 NIGHTS 的 id 則不帶 @**，
+   那是另一份資料，由 post() 自己補。改任何一邊之前先看 verify.mjs 的「注入形狀」那一項。 */
 var POSTS = /*@@POSTS@@*/[];
 var POSTS_DEFAULT = [
   {day:1, text:'《守則本》限時預購中。內頁空白，你們可以自己寫。',
-   comments:[{id:'Bambi_Draft3',text:'內頁的格線重排過了，這一版對了。'},{id:'CatGrass_80',text:'買了。'}]},
+   comments:[{id:'@Bambi_Draft3',text:'內頁的格線重排過了，這一版對了。'},{id:'@CatGrass_80',text:'買了。'}]},
   {day:1, text:'這個月的周邊有新東西喔。便利商店的立牌會站到月底。',
-   comments:[{id:'Tower_Manager',text:'月底。'},{id:'今天也在',text:'買了兩包。'},{id:'早安人',text:'早安'}]},
+   comments:[{id:'@Tower_Manager',text:'月底。'},{id:'@今天也在',text:'買了兩包。'},{id:'@早安人',text:'早安'}]},
   {day:2, text:'跟 @Null_0x99 的聯動排在下週。猜歌，不用兩個人講話。',
-   comments:[{id:'Null_0x99',text:'週四 21:00:00。'},{id:'CatGrass_80',text:'她記得排程？'}]},
+   comments:[{id:'@Null_0x99',text:'週四 21:00:00。'},{id:'@CatGrass_80',text:'她記得排程？'}]},
   {day:3, text:'新的插畫。畫她的人說這一版嘴角對了。',
-   comments:[{id:'Bambi_Draft3',text:'第四十一版。'},{id:'Tower_Manager',text:'辛苦。'}]},
+   comments:[{id:'@Bambi_Draft3',text:'第四十一版。'},{id:'@Tower_Manager',text:'辛苦。'}]},
   {day:4, text:'今晚也會開台。我會記得你們的。',
-   comments:[{id:'CatGrass_80',text:'在。',tm:'02:40'},{id:'早安人',text:'早安'}]},
+   comments:[{id:'@CatGrass_80',text:'在。',tm:'02:40'},{id:'@早安人',text:'早安'}]},
   {day:6, text:'手辦店的貨到了。',
-   comments:[{id:'CatGrass_80',text:'拿了兩個。'},{id:'Bambi_Draft3',text:'盒子的正面請朝外。'}]},
+   comments:[{id:'@CatGrass_80',text:'拿了兩個。'},{id:'@Bambi_Draft3',text:'盒子的正面請朝外。'}]},
   {day:8, text:'金魚腦合輯第七集有人剪好了。謝謝你們。',
-   comments:[{id:'第七集有我',text:'這集有我'},{id:'Tower_Manager',text:'（讚）'}]}
+   comments:[{id:'@第七集有我',text:'這集有我'},{id:'@Tower_Manager',text:'（讚）'}]}
 ];
 var OLD = /*@@OLD@@*/[];
 var OLD_DEFAULT = [
-  {id:'考完就刪', text:'妳的麥克風有雜訊，接地應該沒接好。', deleted:true},
-  {id:'考完就刪', text:'我剛剛考完了。', deleted:true},
+  {id:'@考完就刪', text:'妳的麥克風有雜訊，接地應該沒接好。', deleted:true},
+  {id:'@考完就刪', text:'我剛剛考完了。', deleted:true},
   {id:'格莉奇', text:'謝謝你！我會記得的。', self:true}
 ];
 
@@ -581,7 +586,7 @@ function drawMsg(box){
 }
 function comment(c){
   var r=el('div','c');
-  var id=el('span','id'+(c.deleted?' del':''),'@'+c.id);
+  var id=el('span','id'+(c.deleted?' del':''), c.id);   // id 自帶 @（見下方 POSTS 那段的註記），不要再補一個
   if(!c.deleted) id.style.color = c.self?'var(--purple)':colour(c.id);
   r.appendChild(id); r.appendChild(el('span','t',c.text));
   if(c.tm) r.appendChild(el('span','tm',c.tm));
