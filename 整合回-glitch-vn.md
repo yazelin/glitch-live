@@ -39,17 +39,28 @@ glitch-vn 在發佈流程的最後一哩：正篇剛發 release 4、市集簡介
 反過來（對方改卡片、這邊審）會讓對方要重新推導卡片內部的契約——注入形狀、三個已讀變數、
 `liveDays()` 讀 `phone_log`——那些脈絡在這邊。
 
-### 要拉的那一版：`phone-v1`（2026-09-12 釘住）
+### 要拉的那一版：`phone-v2`
 
 ```
-https://raw.githubusercontent.com/yazelin/glitch-live/phone-v1/card.html
+https://raw.githubusercontent.com/yazelin/glitch-live/phone-v2/card.html
 ```
 
-commit `b50f6b94d4899565f571346dc5faf136e0a6c8a9`。打 tag 時 `verify.mjs` 深淺各 22 項兩輪全過。
+commit `c41116011a35ba5af5c2dd2faeda1d3e9b5d5676`（47,551 bytes）。
+打 tag 時 `verify.mjs` 深淺各 23 項兩輪全過。
 tag 上的說明寫了這一版是什麼、注入點怎麼動、讀寫哪些變數、`@` 那條契約。
 
-**整合過程中卡片如果要改，另外打 `phone-v2`，不要動 `phone-v1`。** 釘住的意義就是
-整合那一輪有個固定的東西可以對，不會邊整合邊漂。
+線上那一份 2026-09-12 對過，跟這個 tag **逐 byte 相同**
+（`node dev/check-live.mjs` 的 L1，sha `6ff82e27…`）。
+
+**再要改就打 `phone-v3`，不要動已經發出去的 tag。**
+
+> **【已推翻】** 這一節原本寫的是「要拉的那一版：`phone-v1`」，
+> commit `b50f6b9`、22 項。**推翻它的是 w1D 讀補丁時提的問題**：
+> `phone-v1` 的 `#reply` 送出鈕跟舊 `phone.html` 一樣是個空的 `<i>`，
+> 而整合是整份覆蓋，拉 v1 會把 glitch-vn `c886435` 剛修好的送出鈕蓋回壞的。
+> `phone-v2` 就是補那一處（移植 `c886435`），其餘完全相同。
+> **舊網址那一行留在這裡是故意的**：它看起來完全正常，而且到今天都還取得到檔案，
+> 所以只寫「改拉 v2」擋不住有人照舊連結去拉。
 
 ## 三、要換哪個檔
 
