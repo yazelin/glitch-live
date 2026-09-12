@@ -58,6 +58,18 @@ node ~/glitch-live/dev/check-transcript.mjs --self-test <真的逐字稿>   # �
 所以第三層要從 SKIP 轉綠，缺的是「掛回板子」那一步——
 **S3 會從 SKIP 變綠的那一天，是掛回去那一天，不是重錄那一天。**
 
+**那一步的規格出了**：`規格-配音與BGM掛回板子.md`。查出來的重點：那條路正篇已經有全套
+（`publish_voice.py` 走 GitHub Pages、`novelkit._voice()` 查表掛卡片、背景→BGM 對照表），
+**`larch/inv/build.py` 完全沒接上**——`voiceUrl`、`urls.json`、`bgm` 三個字一次都沒出現。
+另外量到兩個現存缺陷：`urls.json` 有 **57 個代號找不到檔**（推上去就是 404 而且不會有人發現）、
+`docs/voice/` 有 **211 個孤兒檔**不在表裡。
+
+**shell 的 `&&` 會靜默跳過後面的步驟。** lint 或 hook 擋下其中一段時，
+後面用 `&&` 串的編輯／commit 全部不會跑，而整串看起來只像「有個警告」。
+2026-09-12 踩過：`speak-tw` 擋下一行假對比，接在後面的 `NEXT.md` 編輯整段沒寫進去。
+**做法**：編輯類的步驟不要串成一長串，或串完自己回讀確認每一段都真的落地。
+跟「做了動作不等於達成效果」同一類，只是發生在 shell 這一層。
+
 **整合方案在 `整合回-glitch-vn.md`，這裡只留還沒做完的。**
 
 1. 畫面請 yazelin 看過：<https://yazelin.github.io/glitch-live/>。
