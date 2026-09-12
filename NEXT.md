@@ -70,6 +70,18 @@ node ~/glitch-live/dev/check-transcript.mjs --self-test <真的逐字稿>   # �
 現在無害（板上本來就沒聲音），但掛上聲音那一刻會變成「線上正常、匯出版一句都不播、不報錯」。
 **要併進掛載那一步做，由 w1D 在它的流程裡改**，這邊不動專案層設定。
 
+**本機全過不代表線上對。** `verify.mjs` 自己起 server 讀本機檔，驗不到部署出去的東西。
+`dev/check-live.mjs` 打真站量四項，**L1 是「線上的 `card.html` 跟 tag 逐 byte 相同」**——
+「推上去了」跟「線上是新的」是兩件事，Pages 有快取。
+2026-09-12 跑過：L1／L2／L4 綠，L3b SKIP（理由在下面），結束碼 2。
+
+**L3b 是預覽殼的設計限制，不是 bug**：手機那顆深淺鈕存的是 Larch 變數 `phone_theme`，
+而 sandbox iframe 裡 `localStorage` 一碰就 `SecurityError`，所以卡片只能 `larch:set` 寫回宿主。
+遊戲裡宿主是 Larch，變數進存檔所以記得住；demo 的宿主是 `index.html`，
+它把變數放在記憶體（`var saved`），重新整理就沒了。
+**要在 demo 上也記得住，得讓預覽殼把 `phone_theme` 也寫進 `localStorage`——
+那是行為改動，等拍板，沒做。**
+
 **shell 的 `&&` 會靜默跳過後面的步驟。** lint 或 hook 擋下其中一段時，
 後面用 `&&` 串的編輯／commit 全部不會跑，而整串看起來只像「有個警告」。
 2026-09-12 踩過：`speak-tw` 擋下一行假對比，接在後面的 `NEXT.md` 編輯整段沒寫進去。

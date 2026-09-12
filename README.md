@@ -143,6 +143,55 @@ node verify.mjs --theme=light  # 只跑淺色那一輪
 node verify.mjs --headed     # 開視窗看
 ```
 
+## 驗線上那個站
+
+`verify.mjs` 自己起一台 server 讀**本機檔案**，所以它驗不到部署出去的東西。
+`dev/check-live.mjs` 打真站量：
+
+```bash
+node dev/check-live.mjs              # 量 https://yazelin.github.io/glitch-live/
+node dev/check-live.mjs --self-test  # 負控制：送一份被改過的 card.html，L1 要紅
+```
+
+**L1 最重要**：線上那一份 `card.html` 要跟釘住的 tag 逐 byte 相同。
+「推上去了」跟「線上是新的」是兩件事——Pages 有快取。
+
+2026-09-12 實際跑的：
+
+```
+量的是：https://yazelin.github.io/glitch-live/
+
+   綠   L1 線上的 card.html ＝ phone-v2
+        量到：線上 47551 bytes／sha 6ff82e278dc4e1de　vs　phone-v2 47551 bytes／sha 6ff82e278dc4e1de（HTTP 200）
+   綠   L2 深淺鈕在狀態列、按了會換、過場真的動
+        量到：鈕 26×26、在狀態列內 true、離訊號圖示 9px、主題 dark→light、頁底色 rgb(244, 246, 249)（亮度 0.96）、圖示 sun→moon、過場 animation-name=wipe、鈕 class=spin
+   綠   L3a 外框的深淺，重新整理記得住
+        量到：data-theme=light、localStorage=light、底色 rgb(238, 241, 245)
+  SKIP  L3b 手機那顆的深淺，重新整理記得住
+        量到：重新整理之後卡片主題是 dark（切成 light 之後重整）
+        量不到，而且**這是預覽殼的設計不是 bug**：那顆存的是 Larch 變數 phone_theme，
+        而 sandbox iframe 裡 localStorage 一碰就 SecurityError（dev/probe-sandbox-storage.mjs 實測），
+        所以卡片只能靠 larch:set 寫回宿主。遊戲裡宿主是 Larch，變數進存檔所以記得住；
+        這個 demo 的宿主是 index.html，它把變數放在記憶體（var saved），重新整理就沒了。
+        **要在 demo 上也量得到，得讓預覽殼把 phone_theme 也寫進 localStorage——那是行為改動，沒做。**
+   綠   L4 直播頁不吃淺色、浮水印仍然蓋住
+        量到：那頁沒有深淺鈕 true、沒有 t-light true、影片播放中 true、命中測試 25 點露出 0 點、影片反相前後的 PNG 完全相同
+
+  沒有紅的，但 1 項沒驗到。**這不等於全過。**（結束碼 2）
+```
+
+負控制：
+
+```
+負控制：起一台本機站，card.html 多塞一行註解（47551 → 47574 bytes）
+
+  線上 47574 bytes／sha f56ba146eb614c49
+  phone-v2 47551 bytes／sha 6ff82e278dc4e1de
+  → L1 *紅*（抓到了）
+
+PASS 負控制有效：線上那一份跟釘住的不一樣就會紅。
+```
+
 ## 檔案
 
 ```
