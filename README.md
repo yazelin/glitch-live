@@ -98,6 +98,7 @@ assets/live-loop.mp4       直播畫面，720×1280、10 秒、首尾同幀可�
 assets/poster.webp         載入時的預覽圖，也是頭像的來源
 ref/                       設計參考圖
 verify.mjs                 驗收腳本
+dev/probe-sandbox-video.mjs  平台能力探測
 ```
 
 ## 兩種模式
