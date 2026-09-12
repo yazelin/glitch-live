@@ -26,6 +26,19 @@ glitch-vn 在發佈流程的最後一哩：正篇剛發 release 4、市集簡介
 
 ---
 
+## 二之二、誰動哪個檔（2026-09-12 對過）
+
+`card.html` 是**整份覆蓋**，不是 patch，所以只要單邊寫就零衝突。分工：
+
+| 誰 | 動什麼 |
+|---|---|
+| glitch-live 這邊 | `card.html` 整份。打 tag 給對方拉，**不要貼原始碼**——可稽核、可重拉、出事可比對 |
+| glitch-vn 那邊 | `push.py` 三個新注入點、`card_test.mjs` 六條斷言、design 文件、變數表、實玩 |
+| 兩邊 | 對方改完 `push.py`，回 glitch-live 再跑一次 `verify.mjs`（第一項會讀對方的 `push.py` 比對注入字串，十秒） |
+
+反過來（對方改卡片、這邊審）會讓對方要重新推導卡片內部的契約——注入形狀、三個已讀變數、
+`liveDays()` 讀 `phone_log`——那些脈絡在這邊。
+
 ## 三、要換哪個檔
 
 | 這裡 | 搬到那裡 | 怎麼搬 |
@@ -74,6 +87,40 @@ Larch 裡卡片就是整個畫面，手機殼是預覽殼畫的。
 .replace("/*@@NIGHTS@@*/null",  json.dumps(nights, ensure_ascii=False))  # 見下
 ```
 
+### 貼文補到第十三天（2026-09-12 已進 glitch-vn）
+
+`phone_feed()`（`push.py:754`）**直接解析 `design/調查篇-手機.md` 那張 markdown 表**，
+所以補貼文只要改那張表，卡片與 `push.py` 都不用動。實跑過那支解析：
+12 則全部解析出來、留言 ID 全都自帶 `@`、沒有吃到檔案裡別的表。
+
+給之後還要補的人的三條限制：
+
+1. **格式要一模一樣**：`| 天 | 貼文 | 指向 | 留言 |`，第一欄是裸數字。正規表示式是
+   `^\| (\d+) \| (.+?) \| (.+?) \| (.+?) \|$`，**那個檔裡任何其他「四欄、第一欄是數字」
+   的表都會被一起吃進去**。
+2. **留言格式**：`@ID：文字`，多則用 `／` 隔開，時間戳寫 `@ID（02:40）：文字`。ID 要帶 `@`。
+3. **不要寫第十四天的貼文。** 板只到第十三天，第十四天上午只有結局、不經過板，
+   所以手機不會被打開，那一天的內容玩家看不到。
+
+### 新增直播的晚上要做兩件事
+
+卡片判「今晚有沒有開台」是讀 `phone_log` 裡那則「開始直播了」，不是照天數推。所以加一晚要：
+`NIGHTS` 補那天的聊天室資料，**而且**建置層在那天晚上放橫幅卡。只做前者的話直播頁永遠是離線的。
+
+`NIGHTS` 目前寫死在卡片裡，`/*@@NIGHTS@@*` `/` 那個注入點還沒用。哪天要加新的晚上，
+建議一併改成注入（寫一支 `phone_nights()` 照 `phone_feed()` 的做法讀設計文件），
+否則直播的台詞會同時存在兩個 repo——那是下面那個 bug 的近親。
+
+### 一個踩過的坑：留言 ID 會變成 @@
+
+`phone_feed()` 抓留言用 `(@\S+?)：`，**`@` 在捕獲組裡**，所以吐出來的 `comment.id` 自帶 `@`；
+而「兩年前」那一串裡格莉奇自己那一行沒有 `@`。卡片如果自己再補一個，注入之後就會變成
+`@@Bambi_Draft3`，格莉奇那行變成 `@格莉奇`。
+
+**預設值跟注入值形狀一樣的話驗不出來**，所以 `verify.mjs` 有一項「注入形狀」，
+直接用 `push.py` 會吐出來的形狀餵卡片。契約是：**POSTS／OLD 的 id 自帶 `@`，
+聊天室 NIGHTS 的 id 不帶**（由 `post()` 自己補）。
+
 ### 一個拿掉的
 
 舊卡片有 `/*@@LIVE_DAYS@@*` `/[2,5,8]`，`push.py` 其實沒有在注入它。新卡片把它拿掉了：
@@ -92,9 +139,10 @@ Larch 裡卡片就是整個畫面，手機殼是預覽殼畫的。
 
 ```python
 "miniGameReadVars":  ["day", "slot", "phone_log",
-                      "phone_day_seen", "phone_msg_seen", "phone_live_seen"],
+                      "phone_day_seen", "phone_msg_seen", "phone_live_seen", "phone_theme"],
 "miniGameWriteVars": ["phone_log", "open_phone",
-                      "phone_day_seen", "phone_msg_seen", "phone_live_seen", "live_comment"],
+                      "phone_day_seen", "phone_msg_seen", "phone_live_seen",
+                      "live_comment", "phone_theme"],
 ```
 
 跟現在比：
@@ -103,7 +151,10 @@ Larch 裡卡片就是整個畫面，手機殼是預覽殼畫的。
 - `phone_msg_seen`（讀過幾則訊息）與 `phone_live_seen`（哪一天看過直播）是新的，**紅點靠它們**。
   舊卡片只有 `phone_day_seen`，而且 `#dot-msg` 那顆從來沒有被點亮過（`renderFull` 只設 `dot-feed`），
   等於死的 HTML。新卡片三顆都會亮，所以三個已讀狀態都必須存得住。
-- `live_comment` 只有第五天的留言橋段會寫（第五節之二未拍板就先不要加）。
+- `live_comment` 只有第五天的留言橋段會寫。
+- `phone_theme`（`dark`／`light`）是手機上那顆深淺鈕。**那種 sandbox 裡 localStorage 存不了東西**
+  （`dev/probe-sandbox-storage.mjs` 實測：localStorage／sessionStorage／indexedDB／cookie
+  四個全丟 `SecurityError`），所以玩家的選擇只能走 Larch 變數。
 
 **這三個變數 `design/調查篇-變數.md` 都還沒有。** 那張表目前 `phone_*` 只有 `phone_ringing` 一列
 （而且它已經廢了），`phone_log`、`open_phone`、`phone_day_seen` 三個在用的都沒進表。
@@ -331,6 +382,17 @@ glitch-live 這邊已經做完：
 或者第 N 天之後才出現的一則。**那是新正典，要 yazelin 決定要不要寫、寫成什麼。**
 
 ---
+
+## 五之四、一個設計觀察（記著，現在不做）
+
+**這支手機目前對玩家是完全唯讀的。** 除了切分頁與那顆深淺鈕，玩家從頭到尾只能看：
+貼文點不開、聊天室滑不動、訊息回不了（那一條是設計，`調查篇-背包與謎題.md` 五）。
+
+深淺鈕就是為了這件事做的——yazelin 2026-09-12：「玩家切深淺其實就是一個小按鈕，
+讓玩家能夠和這個手機有互動效果而已。因為目前為止玩家都沒和這支手機有任何互動效果。」
+
+之後如果要加別的互動（點貼文看大圖、往下滑載入更多、對某則按讚），從這句話開始。
+**現在不做，這是觀察不是待辦。**
 
 ## 六、整合之後的驗收
 

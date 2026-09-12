@@ -13,8 +13,8 @@
             電話那一格 2026-09-12 拿掉（整合回-glitch-vn.md 五之三）：它沒有任何資料來源，
             是 phone_ringing 廢掉之後留下來的遺留物。那句「沒有人會打來。」回背包道具的備註欄。
     banner  收到訊息的橫幅：頂端一條，兩秒後把那一則寫進 phone_log，自己 larch:complete。
-  miniGameReadVars：day slot phone_log phone_day_seen phone_msg_seen phone_live_seen
-  miniGameWriteVars：phone_log open_phone phone_day_seen phone_msg_seen phone_live_seen live_comment
+  miniGameReadVars：day slot phone_log phone_day_seen phone_msg_seen phone_live_seen phone_theme
+  miniGameWriteVars：phone_log open_phone phone_day_seen phone_msg_seen phone_live_seen live_comment phone_theme
   沒有注入的 @@ 位置都有可以跑的預設值，所以這個檔單獨開也是活的（預覽殼就是這樣用）。
 -->
 <style>
@@ -22,13 +22,28 @@
   --panel:#0c1116; --card:#121920; --sunk:#0a1319; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
   --cy:#25c2e8; --mint:#7cf3c0; --purple:#b78bff;
   --text:#dfe8ec; --muted:#93a3ac; --faint:#6d7d84; --red:#e0323f;
+  --av:#222a33; --av-ink:#8e9aa4; --block:#070b0f; --ink2:#c7d2d8;
+  --del:#5c6169; --ghost:#4e5a62; --dim:rgba(4,8,12,.72); --tabbg:#04060a;
 }
+/* 淺色。**只換三頁與分頁列**：直播那一頁是疊在影片上的介面，兩種主題都維持暗的——
+   淺色的字疊在亮影片上讀不到，而且底部那條實心遮罩是用來蓋浮水印的，不能變。
+   真的串流 app 全螢幕播放時也一律是暗的。 */
+#screen.t-light{
+  --panel:#f4f6f9; --card:#ffffff; --sunk:#eceff4;
+  --line:rgba(16,24,32,.10); --line2:rgba(16,24,32,.16);
+  --cy:#0f7fa0; --mint:#12876a; --purple:#6f45c8; --red:#cc2b38;
+  --text:#16202a; --muted:#4e5c68; --faint:#77848f;
+  --av:#dfe4ea; --av-ink:#6b7782; --block:#e4e8ee; --ink2:#3d4a55;
+  --del:#9aa3ab; --ghost:#98a2ab; --dim:rgba(250,251,253,.62);
+}
+#screen.page-on.t-light #tabs{background:var(--panel)}
+#page,#tabs,#status,.msg .bub,.post,.old,#reply span{transition:background-color .22s,color .22s,border-color .22s}
 *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.34)}
-html{color-scheme:dark}   /* 手機螢幕永遠是暗的。不宣告的話捲軸這類 UA 自己畫的東西會跟著玩家的系統走 */
+html{color-scheme:dark}   /* 預設暗的;玩家按了那顆鈕才換。不宣告的話捲軸這類 UA 自己畫的東西會跟著玩家的系統走 */
 html,body{margin:0;height:100%;overflow:hidden;color:var(--text);
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
 html{background:transparent}
@@ -135,6 +150,7 @@ body{background:#07080c}
 
 /* ══ 其餘三頁 ══ */
 #page{position:absolute;z-index:7;left:0;right:0;top:0;bottom:52px;background:var(--panel);
+  color:var(--text);   /* 一定要在這裡再宣告一次：body 的 color 在 #screen 外面解析，會吃到深色那組 token */
   overflow-y:auto;-webkit-overflow-scrolling:touch;display:none}
 #screen.page-on #page{display:block}
 #screen.tab-msg #page{display:flex;flex-direction:column}
@@ -142,13 +158,28 @@ body{background:#07080c}
   font-size:11px;color:var(--faint);letter-spacing:.05em;position:sticky;top:0;background:var(--panel);z-index:2}
 #status b{color:var(--muted);font-weight:600}
 #status .sb{display:block;color:var(--faint)}   /* 訊號、Wi-Fi、電池 */
+#status .right{display:flex;align-items:center;gap:9px}
+#tbtn{appearance:none;border:1px solid var(--line2);background:var(--sunk);color:var(--muted);
+  width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0;transition:transform .12s,background .2s,border-color .2s,color .2s}
+#tbtn:hover{color:var(--text);border-color:var(--cy)}
+#tbtn:active{transform:scale(.84)}
+#tbtn svg{width:15px;height:15px;transition:transform .38s cubic-bezier(.3,1.4,.5,1),opacity .22s}
+#tbtn .moon{position:absolute}
+#tbtn.spin svg{transform:rotate(180deg)}
+/* 按下去整個螢幕從那顆鈕漫出新的底色。這是「我剛才做了一件事」的回饋，不是裝飾。 */
+#wipe{position:absolute;z-index:12;border-radius:50%;width:40px;height:40px;margin:-20px 0 0 -20px;
+  pointer-events:none;opacity:0}
+#wipe.go{animation:wipe .42s ease-out}
+@keyframes wipe{from{transform:scale(.1);opacity:.85}to{transform:scale(26);opacity:0}}
+@media (prefers-reduced-motion:reduce){#wipe.go{animation:none}#tbtn svg{transition:none}}
 .ttl{margin:4px 16px 10px;font-size:17px;font-weight:700;letter-spacing:.02em}
 .empty{margin:52px 22px;color:var(--faint);font-size:13px;line-height:2.1;text-align:center}
 
 /* 訊息 */
 .msg{display:flex;gap:10px;padding:9px 14px}
-.msg .av{flex:none;width:34px;height:34px;border-radius:11px;background:#222a33 center/cover no-repeat;
-  display:flex;align-items:center;justify-content:center;font-size:12px;color:#8e9aa4}
+.msg .av{flex:none;width:34px;height:34px;border-radius:11px;background:var(--av) center/cover no-repeat;
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--av-ink)}
 .msg .bd{max-width:80%}
 .msg .who{font-size:10.5px;color:var(--faint);margin:0 0 3px 2px}
 .msg .bub{background:var(--card);border:1px solid var(--line);border-radius:4px 14px 14px 14px;
@@ -156,45 +187,47 @@ body{background:#07080c}
 .msg .when{font-size:10px;color:var(--faint);margin:4px 0 0 3px}
 #reply{display:flex;gap:8px;padding:10px 12px 14px;margin-top:auto;border-top:1px solid var(--line)}
 #reply span{flex:1;border:1px solid var(--line);border-radius:18px;padding:8px 13px;font-size:12.5px;
-  color:#4e5a62;background:var(--sunk)}
-#reply i{width:34px;border-radius:50%;background:#1a222a}
+  color:var(--ghost);background:var(--sunk)}
+#reply i{width:34px;border-radius:50%;background:var(--av)}
 
 /* 格莉奇的頁面 */
 .prof{display:flex;gap:12px;align-items:center;padding:6px 16px 12px}
-.prof .av{flex:none;width:54px;height:54px;border-radius:50%;background:#222a33 center/cover no-repeat;
+.prof .av{flex:none;width:54px;height:54px;border-radius:50%;background:var(--av) center/cover no-repeat;
   box-shadow:0 0 0 2px var(--purple)}
 .prof b{display:block;font-size:15px}
 .prof small{display:block;color:var(--faint);font-size:11.5px;margin-top:3px}
 .prof .cnt{margin-top:5px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
-.post{border-top:7px solid #070b0f;padding:12px 16px 8px}
+.post{border-top:7px solid var(--block);padding:12px 16px 8px}
 .post .day{font-size:10.5px;color:var(--faint);margin-bottom:6px;letter-spacing:.04em}
 .post .txt{font-size:13.5px;line-height:1.8;white-space:pre-line}
 .cm{margin:9px 0 0;padding:8px 0 2px;border-top:1px solid var(--line)}
 .cm .c{display:flex;gap:7px;font-size:12px;line-height:1.65;padding:3px 0;align-items:baseline}
 .cm .id{flex:none;font-weight:700}
-.cm .id.del{color:#5c6169;font-weight:400;text-decoration:line-through}
-.cm .t{color:#c7d2d8} .cm .tm{margin-left:auto;color:var(--faint);font-size:10.5px;flex:none}
-.old{border-top:7px solid #070b0f;padding:12px 16px 22px}
+.tint{color:hsl(var(--h) 72% 68%)}
+#screen.t-light .tint{color:hsl(var(--h) 62% 34%)}
+.cm .id.del{color:var(--del);font-weight:400;text-decoration:line-through}
+.cm .t{color:var(--ink2)} .cm .tm{margin-left:auto;color:var(--faint);font-size:10.5px;flex:none}
+.old{border-top:7px solid var(--block);padding:12px 16px 22px}
 .old .day{font-size:10.5px;color:var(--faint);margin-bottom:6px}
-.old .note{font-size:10.5px;color:#4e5a62;margin-top:8px}
+.old .note{font-size:10.5px;color:var(--ghost);margin-top:8px}
 
 /* 直播・沒開台 */
 .offair{padding:14px 16px 20px}
 .offair .box{aspect-ratio:9/13;border-radius:14px;background:var(--card) center/cover no-repeat;
   position:relative;overflow:hidden;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center}
-.offair .box::after{content:"";position:absolute;inset:0;background:rgba(4,8,12,.72)}
+.offair .box::after{content:"";position:absolute;inset:0;background:var(--dim)}
 .offair .box span{position:relative;z-index:1;font-size:12.5px;color:var(--muted);letter-spacing:.06em}
 .offair p{font-size:13px;line-height:1.9;margin:14px 2px 0}
 .offair p.dim{color:var(--faint)}
 
 /* 分頁列。第五格是收起來，舊卡片那顆 #close 搬到這裡，不然底部只剩分頁列沒地方放 */
 #tabs{position:absolute;z-index:9;left:0;right:0;bottom:0;height:52px;display:flex;
-  background:#04060a;border-top:1px solid var(--line)}
+  background:var(--tabbg);border-top:1px solid var(--line)}
 #tabs button{flex:1;appearance:none;border:0;background:none;font:inherit;font-size:11.5px;
-  color:#6d7d84;cursor:pointer;position:relative;padding:0 0 4px;transition:color .15s}
+  color:var(--faint);cursor:pointer;position:relative;padding:0 0 4px;transition:color .15s}
 #tabs button.on{color:var(--cy);font-weight:700}
-#tabs button#t-close{color:#4e5a62;border-left:1px solid var(--line)}
+#tabs button#t-close{color:var(--ghost);border-left:1px solid var(--line)}
 #tabs button#t-close:hover{color:var(--text)}
 #tabs button .dot{position:absolute;top:11px;right:24%;width:6px;height:6px;border-radius:50%;background:var(--red)}
 
@@ -290,6 +323,7 @@ body.banner #strip{display:flex}
     </div>
   </div></div>
 
+  <div id="wipe"></div>
   <div id="wmbox"></div>
 </div>
 
@@ -406,6 +440,7 @@ var $ = function(s){ return document.querySelector(s); };
 var screen=$('#screen'), vid=$('#vid'), poster=$('#poster'), chat=$('#chat'), page=$('#page');
 var values={}, done=false, booted=false;
 var day=1, slot=0, tab='msg', timers=[], t0=0, likes=0, viewers=0, sent=false;
+var theme='dark';   // 玩家選的,存在 Larch 變數 phone_theme(sandbox 裡 localStorage 用不了,實測見 dev/probe-sandbox-storage.mjs)
 
 /* ── Larch 協定 ── */
 function setVar(n,v){ parent.postMessage({type:'larch:set', name:n, value:v}, '*'); }
@@ -435,7 +470,9 @@ function liveDays(){
   return a.sort(function(x,y){ return x-y; });
 }
 function onAir(){ return liveDays().indexOf(day)>=0 && slot>=2 && !!NIGHTS[day]; }
-function colour(id){ if(!HUE[id]){ HUE[id]='hsl('+(nextHue%360)+' 72% 68%)'; nextHue+=67; } return HUE[id]; }
+/* 只記色相；明度交給 CSS，這樣切深淺不必重畫已經畫出來的留言 */
+function hue(id){ if(HUE[id]==null){ HUE[id]=nextHue%360; nextHue+=67; } return HUE[id]; }
+function tintId(e,id){ e.style.setProperty('--h', hue(id)); e.classList.add('tint'); }
 /* 三個已讀狀態都要寫回 Larch，不然卡片一重新掛載紅點就又亮了，
    玩家會學到紅點沒有意義——那比沒有紅點更糟。
    phone_day_seen 看到第幾天的貼文｜phone_msg_seen 讀過幾則訊息｜phone_live_seen 哪一天看過直播 */
@@ -449,7 +486,7 @@ function markSeen(name,v){ if(values[name]!==v){ values[name]=v; setVar(name,v);
 function post(id,text,kind){
   var r=el('div','row'+(kind?' '+kind:''));
   var a=el('span','id','@'+id);
-  if(kind!=='mine' && kind!=='sys') a.style.color=colour(id);
+  if(kind!=='mine' && kind!=='sys') tintId(a,id);
   r.appendChild(a); r.appendChild(el('span','tx',text));
   chat.appendChild(r);
   while(chat.children.length>14) chat.removeChild(chat.firstChild);
@@ -559,8 +596,48 @@ function statusBar(){
     + '<rect x="31" y="2.6" width="19" height="8.8" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".5"/>'
     + '<rect x="50.8" y="5.4" width="1.6" height="3.2" rx=".8" fill="currentColor" opacity=".5"/>'
     + '<rect x="32.5" y="4.2" width="9.6" height="5.6" rx="1.4" fill="currentColor"/>';
-  s.appendChild(g);
+  var right=el('div','right');
+  right.appendChild(themeButton());
+  right.appendChild(g);
+  s.appendChild(right);
   return s;
+}
+var SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">'
+  + '<circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"/>'
+  + '<path d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg>';
+var MOON = '<svg viewBox="0 0 24 24" fill="currentColor">'
+  + '<path d="M20 14.5A8.4 8.4 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
+function themeButton(){
+  var b=el('button'); b.id='tbtn'; b.type='button';
+  b.setAttribute('aria-label', theme==='light' ? '切成深色' : '切成淺色');
+  b.title = b.getAttribute('aria-label');
+  b.innerHTML = theme==='light' ? MOON : SUN;
+  b.addEventListener('click', function(e){ flipTheme(b, e); });
+  return b;
+}
+/* 深淺是玩家在這支手機上唯一能碰的東西，所以它要有反應：
+   按鈕壓一下、圖示轉半圈、新的底色從那顆鈕漫出去，整個螢幕跟著過渡。 */
+function flipTheme(btn, ev){
+  theme = theme==='light' ? 'dark' : 'light';
+  var w=$('#wipe'), r=screen.getBoundingClientRect(), b=btn.getBoundingClientRect();
+  w.style.left=(b.left-r.left+b.width/2)+'px';
+  w.style.top=(b.top-r.top+b.height/2)+'px';
+  w.style.background = theme==='light' ? '#f4f6f9' : '#0c1116';
+  w.className=''; void w.offsetWidth; w.className='go';
+  btn.className='spin';
+  setTimeout(function(){
+    applyTheme();
+    btn.innerHTML = theme==='light' ? MOON : SUN;
+    btn.setAttribute('aria-label', theme==='light' ? '切成深色' : '切成淺色');
+    btn.title = btn.getAttribute('aria-label');
+    btn.className='';
+  }, 120);
+  if(values.phone_theme !== theme){ values.phone_theme = theme; setVar('phone_theme', theme); }
+}
+function applyTheme(){
+  screen.classList.toggle('t-light', theme==='light');
+  document.documentElement.style.colorScheme = theme==='light' ? 'light' : 'dark';
+  document.body.style.background = theme==='light' ? '#f4f6f9' : '#07080c';
 }
 function glitchAvatar(e){
   if(!AVATAR) return;
@@ -587,7 +664,7 @@ function drawMsg(box){
 function comment(c){
   var r=el('div','c');
   var id=el('span','id'+(c.deleted?' del':''), c.id);   // id 自帶 @（見下方 POSTS 那段的註記），不要再補一個
-  if(!c.deleted) id.style.color = c.self?'var(--purple)':colour(c.id);
+  if(!c.deleted){ if(c.self) id.style.color='var(--purple)'; else tintId(id,c.id); }
   r.appendChild(id); r.appendChild(el('span','t',c.text));
   if(c.tm) r.appendChild(el('span','tm',c.tm));
   return r;
@@ -738,6 +815,8 @@ window.addEventListener('message', function(e){
   // miniGame 的 init 給的是 variables；本機殼給 values，兩個都認
   values = Object.assign({}, d.variables||{}, d.values||{});
   day = num(values.day,1); slot = num(values.slot,0);
+  theme = values.phone_theme==='light' ? 'light' : 'dark';
+  applyTheme();
   if(MODE==='banner' && BANNER) renderBanner(); else renderFull();
 });
 parent.postMessage({type:'larch:ready'}, '*');
@@ -752,6 +831,8 @@ setTimeout(function(){
   }
 }, 200);
 
-window.checkCover=checkCover; window.wmRect=wmRect; window.show=show;  // Playwright / console 用
+window.checkCover=checkCover; window.wmRect=wmRect; window.show=show;
+window.getCardTheme=function(){ return theme; };
+window.flipCardTheme=function(){ var b=document.querySelector('#tbtn'); if(b) b.click(); return !!b; };
 </script>
 </html>

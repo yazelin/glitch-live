@@ -102,8 +102,10 @@ try{ var t=localStorage.getItem('glitch-live-theme');
   <h1>她的手機・畫面原型</h1>
   <p>右邊這一塊是預覽殼，扮演 Larch 當宿主。手機裡跑的是 <code>card.html</code>，
      整合時那個檔整份複製成 <code>larch/cards/phone.html</code>。做法見 <code>整合回-glitch-vn.md</code>。</p>
-  <p>深淺只換這個外框。<strong>手機螢幕本身一律是暗的</strong>——那是夜裡場景裡的一支手機，
-     不該跟著看的人的系統主題變，遊戲裡也不會。</p>
+  <p>上面那組「外觀」只換這個外框。<strong>手機螢幕自己的深淺在手機裡面切</strong>——
+     狀態列右邊那顆小鈕，那是玩家在這支手機上唯一能碰的東西。
+     它記在 Larch 變數 <code>phone_theme</code>（那種 sandbox 裡 localStorage 用不了，
+     實測見 <code>dev/probe-sandbox-storage.mjs</code>）。</p>
   <h2>外觀</h2>
   <div class="grp" id="themes"></div>
   <h2>第幾天（板到第十三天）</h2>
@@ -152,7 +154,7 @@ function applyTheme(v){
 }
 /* 卡片寫回來的變數留在這裡，下一次 larch:init 再送回去。
    Larch 會把變數存進存檔，預覽殼要模擬那件事，否則驗不出紅點看過會不會真的消失。 */
-var saved = {phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0};
+var saved = {phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0, phone_theme:'dark'};
 var skipTonight = false;   // 驗收用：抽掉今晚那一則開台通知，證明卡片是讀 phone_log 不是照天數推
 var $=function(s){ return document.querySelector(s); };
 var frame=$('#frame'), out=$('#out');
@@ -257,7 +259,7 @@ function wmRect(){
 function checkCover(){ return frame.contentWindow.checkCover(); }
 
 $('#forget').addEventListener('click',function(){
-  saved={phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0};
+  saved={phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0, phone_theme:saved.phone_theme};
   out.textContent='已讀清掉了。重新掛載一次，三個紅點都該回來。';
   reload();
 });
@@ -280,7 +282,7 @@ paint();
 // Playwright / console 用
 window.setTime=setTime; window.setMode=setMode; window.wmRect=wmRect; window.checkCover=checkCover;
 window.setFlag=function(k){ flags[k]=flags[k]?0:day; paint(); sendInit(); };
-window.forget=function(){ saved={phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0}; reload(); };
+window.forget=function(){ saved={phone_day_seen:0, phone_msg_seen:0, phone_live_seen:0, phone_theme:saved.phone_theme}; reload(); };
 window.getSaved=function(){ return saved; };
 window.setTheme=applyTheme;
 window.getTheme=function(){

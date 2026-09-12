@@ -49,11 +49,26 @@
 
 **一個字都沒有自己加。** 貼文、留言、ID 的口氣、兩年前那三行、三晚的聊天室，全部照設計文件。
 
-## 深淺外觀
+## 手機上那顆深淺鈕
 
-**只換 demo 的外框，手機螢幕本身一律是暗的。** 那是夜裡場景裡的一支手機，
-不該跟著看的人的系統主題變，遊戲裡也不會——`card.html` 沒有任何主題注入點，
-也不打算加。
+狀態列右邊那顆小鈕，**是玩家在這支手機上唯一能碰的東西**。按下去圖示轉半圈、
+新的底色從那顆鈕漫出去、整個螢幕跟著過渡——那是回饋，不是裝飾。
+
+玩家的選擇存在 Larch 變數 `phone_theme`。**不是 localStorage**：那種
+`srcdoc` + `sandbox="allow-scripts"` 的 iframe 裡 localStorage／sessionStorage／
+indexedDB／cookie 四個全部丟 `SecurityError`，實測在 `dev/probe-sandbox-storage.mjs`。
+
+**直播那一頁不吃淺色**，兩種主題都維持暗的：淺色的字疊在亮影片上讀不到，
+而且底部那條實心遮罩是拿來蓋浮水印的。真的串流 app 全螢幕播放時也一律是暗的。
+所以那顆鈕只出現在有狀態列的三頁。
+
+| 深 | 淺 |
+|---|---|
+| ![手機深色](shots/card-dark.webp) | ![手機淺色](shots/card-light.webp) |
+
+## demo 外框的深淺外觀
+
+這一組是 demo 站自己的外框（主控台最上面），跟手機裡那顆鈕是兩回事。
 
 三態：沒選過就跟隨系統（`prefers-color-scheme`，不寫 `data-theme`），
 選了記在 `localStorage['glitch-live-theme']`，重新整理還是那一套。

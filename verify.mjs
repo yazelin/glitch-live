@@ -90,6 +90,46 @@ const fail = (why) => { bad++; console.log('FAIL ' + why); };
   else console.log('PASS 線上的 mp4｜正式專案指的那個網址回 200');
 }
 
+/* ── 手機上那顆深淺鈕 ──
+   玩家在這支手機上唯一能碰的東西（yazelin 2026-09-12）。三件要驗：
+   按了會換、換了會寫 phone_theme、重新掛載之後還是玩家選的那一套。
+   直播那一頁的疊層兩種主題都維持暗的（淺色的字疊在亮影片上讀不到，而且底部那條
+   實心遮罩是拿來蓋浮水印的），所以那顆鈕只出現在有狀態列的三頁。 */
+{
+  await page.evaluate(() => { window.setTime(8, 2); window.show('feed'); });
+  await page.waitForTimeout(300);
+  const before = await inCard(() => window.getCardTheme());
+  const hasBtn = await inCard(() => !!document.querySelector('#tbtn'));
+  await inCard(() => window.flipCardTheme());
+  await page.waitForTimeout(700);
+  const after = await inCard(() => ({ theme: window.getCardTheme(),
+    lit: document.querySelector('#screen').classList.contains('t-light'),
+    panel: getComputedStyle(document.querySelector('#page')).backgroundColor }));
+  await page.locator('#phone').screenshot({ path: shot('card-light.png') });
+  const wrote = await page.evaluate(() => window.getSaved().phone_theme);
+  // 直播那一頁不吃淺色
+  await page.evaluate(() => window.show('live'));
+  await page.waitForTimeout(3400);
+  const liveDark = await inCard(() => !document.querySelector('#tbtn'));
+  const hit2 = await page.evaluate(() => window.checkCover());
+  // 重新掛載：玩家選的那一套要還在
+  await page.evaluate(() => { window.setMode('full'); });
+  await page.waitForTimeout(900);
+  await page.evaluate(() => { window.setTime(8, 2); window.show('feed'); });
+  await page.waitForTimeout(400);
+  const kept = await inCard(() => window.getCardTheme());
+  await inCard(() => { if (window.getCardTheme() === 'light') window.flipCardTheme(); });
+  await page.waitForTimeout(600);
+
+  const lum = (c) => { const [r, g, b] = (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number); return (.2126 * r + .7152 * g + .0722 * b) / 255; };
+  const ok = hasBtn && before === 'dark' && after.theme === 'light' && after.lit
+    && lum(after.panel) > .8 && wrote === 'light' && kept === 'light' && liveDark && hit2.ok;
+  if (!ok) fail(`深淺鈕｜有鈕 ${hasBtn}｜按完 ${after.theme}/${after.lit}/底色 ${after.panel}｜`
+    + `寫了 phone_theme=${wrote}｜重新掛載後 ${kept}｜直播頁沒有那顆鈕 ${liveDark}｜淺色下浮水印仍蓋住 ${hit2.ok}`);
+  else console.log('PASS 深淺鈕｜按了會換、寫回 phone_theme、重新掛載還是淺色；'
+    + '直播頁不吃淺色而且浮水印照樣蓋住');
+}
+
 /* ── 注入形狀 ──
    push.py 的 phone_feed() 吐出來的 comment.id **自帶 @**（正規表示式是 `(@\\S+?)：`），
    而「兩年前」那一串裡格莉奇自己那一行沒有 @。卡片如果自己再補一個就會變成 @@。
