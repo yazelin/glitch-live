@@ -411,7 +411,7 @@ var POSTS_DEFAULT = [
    comments:[{id:'@Tower_Manager',text:'月底。'},{id:'@今天也在',text:'買了兩包。'},{id:'@早安人',text:'早安'}]},
   {day:2, text:'跟 @Null_0x99 的聯動排在下週。猜歌，不用兩個人講話。',
    comments:[{id:'@Null_0x99',text:'週四 21:00:00。'},{id:'@CatGrass_80',text:'她記得排程？'}]},
-  {day:3, text:'新的插畫。畫她的人說這一版嘴角對了。',
+  {day:3, text:'新的插畫。這一版嘴角對了。',
    comments:[{id:'@Bambi_Draft3',text:'第四十一版。'},{id:'@Tower_Manager',text:'辛苦。'}]},
   {day:4, text:'今晚也會開台。我會記得你們的。',
    comments:[{id:'@CatGrass_80',text:'在。',tm:'02:40'},{id:'@早安人',text:'早安'}]},
@@ -665,7 +665,7 @@ function drawMsg(box){
     r.appendChild(av); r.appendChild(bd); box.appendChild(r);
   });
   var rp=el('div'); rp.id='reply';
-  rp.appendChild(el('span',null,'她不回。')); rp.appendChild(el('i'));
+  rp.appendChild(el('span',null,'簡訊與通知。這裡只收。')); rp.appendChild(el('i'));
   box.appendChild(rp);
 }
 function comment(c){
@@ -680,7 +680,7 @@ function drawFeed(box){
   var p=el('div','prof'), av=el('div','av'); glitchAvatar(av); p.appendChild(av);
   var t=el('div');
   t.appendChild(el('b',null,'格莉奇'));
-  t.appendChild(el('small',null,'官方帳號・每天開台'));
+  t.appendChild(el('small',null,'官方帳號・不定時開台'));
   t.appendChild(el('div','cnt','追蹤 1,204,880　貼文 '+POSTS.filter(function(x){return x.day<=day;}).length));
   p.appendChild(t); box.appendChild(p);
 
@@ -728,11 +728,11 @@ function show(p){
   if(p==='live' && onAir()){ markSeen('phone_live_seen', day); $('#dot-live').hidden=true; }
 
   if(p==='live' && onAir()){
-    screen.className=''; page.textContent='';
+    screen.className=''; if(theme==='light') screen.classList.add('t-light'); page.textContent='';
     startLive(); return;
   }
   try{ vid.pause(); }catch(e){}
-  screen.className='page-on off tab-'+p;
+  screen.className='page-on off tab-'+p; if(theme==='light') screen.classList.add('t-light');
   page.textContent=''; page.scrollTop=0;
   page.appendChild(statusBar());
   PAGES[p](page);
