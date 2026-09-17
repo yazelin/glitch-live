@@ -4,7 +4,7 @@
 > 用絕對網址直接引用：
 >
 > ```
-> https://yazelin.github.io/glitch-live/assets/live-loop.mp4
+> https://cdn.jsdelivr.net/gh/yazelin/glitch-live@main/assets/live-loop.mp4（Pages 直連從台灣抓 3 MB 要 80 秒，jsDelivr 5 秒；改檔後要 purge：https://purge.jsdelivr.net/gh/yazelin/glitch-live@main/assets/live-loop.mp4）
 > ```
 >
 > **這個 repo 改名、轉私有、刪掉，或是那個檔案改名、搬走，遊戲裡的直播畫面就會壞掉，
